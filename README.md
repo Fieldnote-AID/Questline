@@ -94,6 +94,28 @@ Each turn, it:
 This means the AI keeps seeing the current quest objective without the player needing to manually manage progression cards.
 
 ---
+### Start the scenario with the first trigger already seeded
+
+Questline works best when the story opening already names or points toward the **first active event**.
+
+For example, if the first quest step is:
+
+- `First Key — House of Borrowed Memories`
+
+then the opener should already include something like:
+
+> The gold-bound book opens and reveals the first page: the House of Borrowed Memories.
+
+This helps in three ways:
+- it puts the first destination into context immediately
+- it aligns the story text with the script’s first active event
+- it gives the AI a concrete place to move toward from turn one
+
+Best practice:
+- **seed the first event in the opening**
+- **do not mark it complete in the opening**
+
+The opening should establish the first lead, not finish the first step.
 
 ## Recommended Memory Setup
 
