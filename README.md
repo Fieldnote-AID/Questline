@@ -1,7 +1,5 @@
-![Questline banner](./assets/questline-banner.png)
-
 <p align="center">
-  <img src="./assets/questline-banner.png" alt="Questline banner" width="100%">
+  <img src="https://raw.githubusercontent.com/LewdLeah/Inner-Self/main/assets/questline-banner.png" width="800">
 </p>
 
 # Questline
