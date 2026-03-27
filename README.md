@@ -1,4 +1,6 @@
-![Questline banner](./assets/questline-banner.png)
+<p align="center">
+  <img src="./assets/questline-banner.png" alt="Questline banner" width="100%">
+</p>
 
 # Questline
 ### Automated quest progression for AI Dungeon
