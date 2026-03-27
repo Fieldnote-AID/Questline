@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./questline-banner.png" alt="Questline banner" width="800">
+  <img src="questline-banner.png" alt="Questline banner" width="800">
 </p>
 
 # Questline
