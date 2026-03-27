@@ -151,36 +151,38 @@ That split gives Questline the best chance of keeping the story moving cleanly.
 
 ---
 
-## Install Guide
-
-Questline can run in two ways.
-
----
-
 ## Scenario Script Install Guide
+
+Use the AI Dungeon website on PC (or view as desktop if mobile-only).
 
 Questline can be installed in **two ways**:
 
-- **Standalone** → if you are not using any other scripts
-- **Add-on to Inner Self** → if you already use Inner Self
-
-Use the AI Dungeon website on PC (or view as desktop if mobile-only).
+- **Standalone** — for scenarios that are not using any other scripts
+- **Add-on to Inner Self** — for scenarios that already use Inner Self
 
 ---
 
 ## Standalone Install
 
+Use this version if your scenario is **not** already using Inner Self or another scripting framework.
+
+### Step 1: Open your scenario
 1. Create a new scenario or edit an existing scenario
 2. Open the `DETAILS` tab at the top while editing your scenario
 3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
 4. Select `EDIT SCRIPTS`
-5. Select the **Input** tab on the left
-6. Delete all code within that tab
-7. Copy and paste the following code into your empty Input tab:
+
+---
+
+### Step 2: Set up the Input tab
+1. Select the **Input** tab on the left
+2. Delete all code within said tab
+3. Copy and paste the following code into your empty Input tab:
 
 ```js
 // Your "Input" tab should look like this
 const modifier = (text) => {
+  // Any other input modifier scripts can go here
   return { text };
 };
 modifier(text);
