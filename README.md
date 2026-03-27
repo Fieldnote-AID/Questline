@@ -94,6 +94,8 @@ Each turn, it:
 This means the AI keeps seeing the current quest objective without the player needing to manually manage progression cards.
 
 ---
+
+## Recommended Memory Setup
 ### Start the scenario with the first trigger already seeded
 
 Questline works best when the story opening already names or points toward the **first active event**.
@@ -117,7 +119,6 @@ Best practice:
 
 The opening should establish the first lead, not finish the first step.
 
-## Recommended Memory Setup
 
 Questline works best when the rest of your memory setup stays lean.
 
