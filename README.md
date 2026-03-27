@@ -1,6 +1,7 @@
 <p align="center">
-  <img src="./assets/questline-banner.png" alt="Questline banner" width="800">
+  <img src="https://github.com/user-attachments/assets/questline-banner.png" alt="Questline banner" width="800">
 </p>
+
 # Questline
 ### Automated quest progression for AI Dungeon
 
