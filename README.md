@@ -151,7 +151,6 @@ That split gives Questline the best chance of keeping the story moving cleanly.
 
 ---
 
-````md
 ## Scenario Script Install Guide
 
 Use the AI Dungeon website on PC (or view as desktop if mobile-only).
@@ -185,10 +184,9 @@ const modifier = (text) => {
   return { text };
 };
 modifier(text);
-````
+```
 
 ### Step 3: Set up the Context tab
-
 1. Select the **Context** tab on the left
 2. Delete all code within said tab
 3. Copy and paste the following code into your empty Context tab:
@@ -203,7 +201,6 @@ modifier(text);
 ```
 
 ### Step 4: Set up the Output tab
-
 1. Select the **Output** tab on the left
 2. Delete all code within said tab
 3. Copy and paste the following code into your empty Output tab:
@@ -219,7 +216,6 @@ modifier(text);
 ```
 
 ### Step 5: Set up the Library tab
-
 1. Select the **Library** tab on the left
 2. Delete all code within said tab
 3. Open the Questline **Library code** in a new browser tab
@@ -239,14 +235,12 @@ All adventures played from your scenario will now include Questline.
 Use this version if your scenario **already uses Inner Self**.
 
 ### Step 1: Open your scenario
-
 1. Create a new scenario or edit an existing scenario
 2. Open the `DETAILS` tab at the top while editing your scenario
 3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
 4. Select `EDIT SCRIPTS`
 
 ### Step 2: Keep your existing Input tab
-
 1. Select the **Input** tab on the left
 2. Leave your existing Inner Self wrapper in place
 
@@ -263,7 +257,6 @@ modifier(text);
 ```
 
 ### Step 3: Keep your existing Context tab
-
 1. Select the **Context** tab on the left
 2. Leave your existing Inner Self wrapper in place
 
@@ -280,7 +273,6 @@ modifier(text);
 ```
 
 ### Step 4: Keep your existing Output tab
-
 1. Select the **Output** tab on the left
 2. Leave your existing Inner Self wrapper in place
 
@@ -297,7 +289,6 @@ modifier(text);
 ```
 
 ### Step 5: Add Questline to the Library tab
-
 1. Select the **Library** tab on the left
 2. Keep your existing Inner Self library code
 3. Paste the Questline code near the end of `library.js`
@@ -316,7 +307,7 @@ Questline works best when the **story opener already seeds the first active even
 
 If your first quest step is something like:
 
-* `First Key — House of Borrowed Memories`
+- `First Key — House of Borrowed Memories`
 
 then the opening should already mention that place directly.
 
@@ -325,9 +316,8 @@ Good example:
 > The gold-bound book opens and reveals the first page: the House of Borrowed Memories.
 
 Best practice:
-
-* seed the first event in the opener
-* do **not** complete it in the opener
+- seed the first event in the opener
+- do **not** complete it in the opener
 
 This aligns the story text with Questline’s first active step and gives the AI a concrete destination from turn one.
 
@@ -336,29 +326,25 @@ This aligns the story text with Questline’s first active step and gives the AI
 ## After Installing
 
 You should still manage these manually:
-
-* AI Instructions
-* Story Summary
-* Plot Essentials
-* Author’s Note
-* character cards
-* world cards
+- AI Instructions
+- Story Summary
+- Plot Essentials
+- Author’s Note
+- character cards
+- world cards
 
 Questline should manage:
-
-* current quest lead
-* quest progress
-* completed milestone cards
+- current quest lead
+- quest progress
+- completed milestone cards
 
 ---
 
 ## Notes
 
-* If you are using Questline by itself, the **Output** tab wrapper is required.
-* If you are already using Inner Self, leave the Input / Context / Output wrappers alone and only add Questline to `library.js`.
-* You generally should **not** manually pre-create quest progression cards if Questline is managing them.
-* Questline works best when event names and leads are concrete and distinctive.
+- If you are using Questline by itself, the **Output** tab wrapper is required.
+- If you are already using Inner Self, leave the Input / Context / Output wrappers alone and only add Questline to `library.js`.
+- You generally should **not** manually pre-create quest progression cards if Questline is managing them.
+- Questline works best when event names and leads are concrete and distinctive.
 
-```
-```
 
