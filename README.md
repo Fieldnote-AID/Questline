@@ -151,6 +151,7 @@ That split gives Questline the best chance of keeping the story moving cleanly.
 
 ---
 
+````md
 ## Scenario Script Install Guide
 
 Use the AI Dungeon website on PC (or view as desktop if mobile-only).
@@ -172,8 +173,6 @@ Use this version if your scenario is **not** already using Inner Self or another
 3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
 4. Select `EDIT SCRIPTS`
 
----
-
 ### Step 2: Set up the Input tab
 1. Select the **Input** tab on the left
 2. Delete all code within said tab
@@ -186,3 +185,180 @@ const modifier = (text) => {
   return { text };
 };
 modifier(text);
+````
+
+### Step 3: Set up the Context tab
+
+1. Select the **Context** tab on the left
+2. Delete all code within said tab
+3. Copy and paste the following code into your empty Context tab:
+
+```js
+// Your "Context" tab should look like this
+const modifier = (text) => {
+  // Any other context modifier scripts can go here
+  return { text, stop };
+};
+modifier(text);
+```
+
+### Step 4: Set up the Output tab
+
+1. Select the **Output** tab on the left
+2. Delete all code within said tab
+3. Copy and paste the following code into your empty Output tab:
+
+```js
+// Your "Output" tab should look like this
+const modifier = (text) => {
+  try { QuestDirector.run("output"); } catch (e) {}
+  // Any other output modifier scripts can go here
+  return { text };
+};
+modifier(text);
+```
+
+### Step 5: Set up the Library tab
+
+1. Select the **Library** tab on the left
+2. Delete all code within said tab
+3. Open the Questline **Library code** in a new browser tab
+4. Copy the full code from that page
+5. Paste it into your empty Library tab
+6. Edit the `QUEST_CONFIG` object near the top of the Questline block
+7. Click the big yellow `SAVE` button in the top right corner
+
+And you're done!
+
+All adventures played from your scenario will now include Questline.
+
+---
+
+## Install as an Add-on to Inner Self
+
+Use this version if your scenario **already uses Inner Self**.
+
+### Step 1: Open your scenario
+
+1. Create a new scenario or edit an existing scenario
+2. Open the `DETAILS` tab at the top while editing your scenario
+3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
+4. Select `EDIT SCRIPTS`
+
+### Step 2: Keep your existing Input tab
+
+1. Select the **Input** tab on the left
+2. Leave your existing Inner Self wrapper in place
+
+Your Input tab should look like this:
+
+```js
+// Your "Input" tab should look like this
+InnerSelf("input");
+const modifier = (text) => {
+  // Any other input modifier scripts can go here
+  return { text };
+};
+modifier(text);
+```
+
+### Step 3: Keep your existing Context tab
+
+1. Select the **Context** tab on the left
+2. Leave your existing Inner Self wrapper in place
+
+Your Context tab should look like this:
+
+```js
+// Your "Context" tab should look like this
+InnerSelf("context");
+const modifier = (text) => {
+  // Any other context modifier scripts can go here
+  return { text, stop };
+};
+modifier(text);
+```
+
+### Step 4: Keep your existing Output tab
+
+1. Select the **Output** tab on the left
+2. Leave your existing Inner Self wrapper in place
+
+Your Output tab should look like this:
+
+```js
+// Your "Output" tab should look like this
+InnerSelf("output");
+const modifier = (text) => {
+  // Any other output modifier scripts can go here
+  return { text };
+};
+modifier(text);
+```
+
+### Step 5: Add Questline to the Library tab
+
+1. Select the **Library** tab on the left
+2. Keep your existing Inner Self library code
+3. Paste the Questline code near the end of `library.js`
+4. Edit the `QUEST_CONFIG` object near the top of the Questline block
+5. Click the big yellow `SAVE` button in the top right corner
+
+And you're done!
+
+All adventures played from your scenario will now include Questline alongside Inner Self.
+
+---
+
+## Important Setup Note
+
+Questline works best when the **story opener already seeds the first active event**.
+
+If your first quest step is something like:
+
+* `First Key — House of Borrowed Memories`
+
+then the opening should already mention that place directly.
+
+Good example:
+
+> The gold-bound book opens and reveals the first page: the House of Borrowed Memories.
+
+Best practice:
+
+* seed the first event in the opener
+* do **not** complete it in the opener
+
+This aligns the story text with Questline’s first active step and gives the AI a concrete destination from turn one.
+
+---
+
+## After Installing
+
+You should still manage these manually:
+
+* AI Instructions
+* Story Summary
+* Plot Essentials
+* Author’s Note
+* character cards
+* world cards
+
+Questline should manage:
+
+* current quest lead
+* quest progress
+* completed milestone cards
+
+---
+
+## Notes
+
+* If you are using Questline by itself, the **Output** tab wrapper is required.
+* If you are already using Inner Self, leave the Input / Context / Output wrappers alone and only add Questline to `library.js`.
+* You generally should **not** manually pre-create quest progression cards if Questline is managing them.
+* Questline works best when event names and leads are concrete and distinctive.
+
+```
+```
+
