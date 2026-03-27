@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/questline-banner.png" alt="Questline banner" width="800">
+  <img src="https://github.com/Fieldnote-AID/Questline/blob/main/assets/questline-banner.png?raw=1" alt="Questline banner" width="800">
 </p>
 
 # Questline
