@@ -96,6 +96,9 @@ This means the AI keeps seeing the current quest objective without the player ne
 ---
 
 ## Recommended Memory Setup
+
+Questline works best when the rest of your memory setup stays lean.
+
 ### Start the scenario with the first trigger already seeded
 
 Questline works best when the story opening already names or points toward the **first active event**.
@@ -118,9 +121,6 @@ Best practice:
 - **do not mark it complete in the opening**
 
 The opening should establish the first lead, not finish the first step.
-
-
-Questline works best when the rest of your memory setup stays lean.
 
 ### Plot Essentials
 Use for:
@@ -301,28 +301,6 @@ All adventures played from your scenario will now include Questline alongside In
 
 ---
 
-## Important Setup Note
-
-Questline works best when the **story opener already seeds the first active event**.
-
-If your first quest step is something like:
-
-- `First Key — House of Borrowed Memories`
-
-then the opening should already mention that place directly.
-
-Good example:
-
-> The gold-bound book opens and reveals the first page: the House of Borrowed Memories.
-
-Best practice:
-- seed the first event in the opener
-- do **not** complete it in the opener
-
-This aligns the story text with Questline’s first active step and gives the AI a concrete destination from turn one.
-
----
-
 ## After Installing
 
 You should still manage these manually:
@@ -340,11 +318,236 @@ Questline should manage:
 
 ---
 
+## Creating a Quest
+
+Questline does not invent your quest structure for you. You define the quest by editing the `QUEST_CONFIG` object in the script.
+
+A Questline quest is made of:
+
+- one **progress card**
+- one **current lead card**
+- one **initial lead**
+- an ordered list of **events**
+
+### The basic idea
+
+Each event is one step in the quest.
+
+For example, a simple quest might look like:
+
+1. find the ruined archive  
+2. recover the first relic  
+3. reach the black lighthouse  
+4. solve the mirror vault  
+5. activate the final machine  
+
+Questline moves through those steps in order.
+
+When the current step is completed:
+- the event is marked complete
+- a completed milestone card is created
+- the progress card is updated
+- the lead card changes to the next step
+
+### Step 1: Name the quest
+
+Pick what your quest is about.
+
+Examples:
+- seven magical keys
+- lost relics
+- murder investigation clues
+- chapter progression
+- dungeon bosses
+- world-hopping trials
+
+Questline works best when the quest has **clear sequential steps**.
+
+### Step 2: Decide the step order
+
+Write out the full progression before building the config.
+
+Example:
+
+1. House of Borrowed Memories  
+2. Moonlit Mosaic  
+3. Choir of the Drowned  
+4. Train of Unwritten Books  
+5. Orchard of the Dead God  
+6. Glass Desert  
+7. Clockwork Hare  
+8. The Seven Gears  
+
+This becomes your `events` array.
+
+### Step 3: Write the initial lead
+
+This is the first clue the player sees when the scenario begins.
+
+Example:
+
+```js
+initialLead: "The gold-bound book points toward the House of Borrowed Memories. Each room takes a memory, and the first golden key comes only when truth is chosen over comfort."
+```
+
+Best practice:
+- make it concrete
+- name the first destination directly
+- seed this same first event in the scenario opener
+
+### Step 4: Create each event
+
+Each event should answer four questions:
+
+1. **What is this step called?**
+2. **What should the AI think the player is pursuing right now?**
+3. **What should be recorded after it is completed?**
+4. **What text signals should count as completion?**
+
+### Step 5: Add the event to `events`
+
+Example:
+
+```js
+{
+  id: "e1",
+  order: 1,
+  title: "Event 1 — The Lost Archive",
+  shortTitle: "The Lost Archive",
+  keys: "Lost Archive, archive, relic, first relic",
+  completionEntry: "The relic was recovered from the Lost Archive.",
+  leadEntry: "The journal points toward the Lost Archive beneath the city.",
+  nextLead: "The journal now points toward the black lighthouse on the western coast.",
+  locationTerms: ["Lost Archive", "archive beneath the city"],
+  completionTerms: ["found", "claimed", "recovered", "took"],
+  keyTerms: ["first relic", "relic", "artifact", "the relic"],
+  completionRegex: [/(the relic was theirs|the relic came free)/i]
+}
+```
+
+### Step 6: Repeat for the rest of the quest
+
+Add one event object for each major step.
+
+You do **not** need to create the progression cards manually if Questline is managing them.
+
+Questline will create:
+- the progress card
+- the current lead card
+- completed milestone cards
+
+### What makes a good event?
+
+A good event has:
+- a distinctive name
+- a clear destination or situation
+- a short current lead
+- a short completion summary
+- easy-to-detect completion language
+
+### What makes a bad event?
+
+Avoid steps that are:
+- too vague (`The Journey Continues`)
+- too generic (`The Temple`)
+- hard to detect from text alone
+- multiple major story beats crammed into one event
+
+### Recommended workflow
+
+1. write the full quest outline first  
+2. break it into clear sequential events  
+3. give each event a distinct name  
+4. write the first lead  
+5. build the `events` array  
+6. make sure the scenario opening seeds the first event  
+7. test the first two steps before writing a huge quest  
+
+### Important note
+
+Questline is strongest when the player is following a real quest structure.
+
+It is best for:
+- linear quests
+- lightly branching quests
+- chapter-based adventures
+- item hunts
+- investigation chains
+
+It is less useful for:
+- pure sandbox play
+- completely improvisational stories
+- stories with no meaningful progression state
+
+---
+
+## Event Structure
+
+Each quest step is one event object.
+
+### Event template
+
+```js
+{
+  id: "e1",
+  order: 1,
+  title: "Event 1 — The Lost Archive",
+  shortTitle: "The Lost Archive",
+  keys: "Lost Archive, archive, relic, first relic",
+  completionEntry: "The relic was recovered from the Lost Archive.",
+  leadEntry: "The journal points toward the Lost Archive beneath the city.",
+  nextLead: "The journal now points toward the black lighthouse on the western coast.",
+  locationTerms: ["Lost Archive", "archive beneath the city"],
+  completionTerms: ["found", "claimed", "recovered", "took"],
+  keyTerms: ["first relic", "relic", "artifact", "the relic"],
+  completionRegex: [/(the relic was theirs|the relic came free)/i]
+}
+```
+
+### Field explanations
+
+- `id`  
+  Unique identifier for the event
+
+- `order`  
+  Sequence number
+
+- `title`  
+  Full Story Card title created when the event is completed
+
+- `shortTitle`  
+  Shorter display name used in the progress card
+
+- `keys`  
+  Story Card trigger keys for the completed milestone card
+
+- `completionEntry`  
+  What the completed milestone card says
+
+- `leadEntry`  
+  What the active quest lead card says while this step is in progress
+
+- `nextLead`  
+  What becomes the next quest clue after this step is completed
+
+- `locationTerms`  
+  Terms associated with the event location or unique destination
+
+- `completionTerms`  
+  Verbs or phrases that suggest completion
+
+- `keyTerms`  
+  Important object names or step identifiers
+
+- `completionRegex`  
+  Optional extra patterns for fuzzy completion detection
+
+---
+
 ## Notes
 
 - If you are using Questline by itself, the **Output** tab wrapper is required.
 - If you are already using Inner Self, leave the Input / Context / Output wrappers alone and only add Questline to `library.js`.
 - You generally should **not** manually pre-create quest progression cards if Questline is managing them.
 - Questline works best when event names and leads are concrete and distinctive.
-
-
+- Questline is strongest when it manages **quest progression**, while you manage the rest of the scenario normally.
