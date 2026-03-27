@@ -1,3 +1,5 @@
+![Questline banner](main/assets/questline generic image.png)
+
 # Questline
 ### Automated quest progression for AI Dungeon
 
