@@ -157,39 +157,30 @@ Questline can run in two ways.
 
 ---
 
-### Option 1: Add-on install for Inner Self or another existing wrapper
+## Scenario Script Install Guide
 
-If your scenario already uses a script framework like **Inner Self**, you usually do **not** need to change your Input / Context / Output tabs.
+Questline can be installed in **two ways**:
 
-#### Steps
-1. Open your scenario
-2. Go to `DETAILS` → `Scripting`
-3. Enable scripts
-4. Open `EDIT SCRIPTS`
-5. Open the `Library` tab
-6. Paste the Questline code near the end of your existing `library.js`
-7. Edit the `QUEST_CONFIG` object
-8. Save
+- **Standalone** → if you are not using any other scripts
+- **Add-on to Inner Self** → if you already use Inner Self
 
-Questline will hook into the existing wrapper automatically.
+Use the AI Dungeon website on PC (or view as desktop if mobile-only).
 
 ---
 
-### Option 2: Standalone install (no other scripts)
+## Standalone Install
 
-If you are **not** using Inner Self or any other scripting framework, the `Library` tab alone is **not enough**.
-
-AI Dungeon only runs active code from the Input / Context / Output tabs. The Library tab is shared code storage. So Questline needs a small wrapper in the **Output** tab.
-
-#### Library tab
-Paste the full Questline script into the `Library` tab.
-
-#### Output tab
-Paste this:
+1. Create a new scenario or edit an existing scenario
+2. Open the `DETAILS` tab at the top while editing your scenario
+3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
+4. Select `EDIT SCRIPTS`
+5. Select the **Input** tab on the left
+6. Delete all code within that tab
+7. Copy and paste the following code into your empty Input tab:
 
 ```js
+// Your "Input" tab should look like this
 const modifier = (text) => {
-  try { QuestDirector.run("output"); } catch (e) {}
   return { text };
 };
 modifier(text);
