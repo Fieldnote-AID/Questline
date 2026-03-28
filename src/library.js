@@ -1,4 +1,4 @@
-/* === Generic Questline Director ===
+/* === Generic Quest Director ===
    Paste near the END of library.js
    No Input / Context / Output changes needed.
 
@@ -17,138 +17,160 @@
   "use strict";
 
   const QUEST_CONFIG = {
-  stateKey: "GenericQuestDirector_MyQuest",
+  stateKey: "GenericQuestDirector_Template",
   cardType: "class",
 
   progressCard: {
     title: "Quest Progress",
-    keys: "quest, progress, objective, journey"
+    keys: "quest progress, active quest, objective tracker, milestone tracker"
   },
 
   leadCard: {
     title: "Current Quest Lead",
-    keys: "current quest, current objective, next step, lead"
+    keys: "current quest lead, active objective, next objective, current objective"
   },
 
   progressLabels: {
     status: "Quest status",
-    lastCompleted: "Last completed milestone",
+    lastCompleted: "Last completed step",
     currentLead: "Current lead",
-    completed: "Completed milestones"
+    completed: "Completed steps"
   },
 
   initialLead:
-    "The journal points toward the first destination. Seed this same place in your story opening.",
+    "The first objective has been revealed. Follow the current lead to begin the quest chain.",
 
   events: [
     {
-      id: "e1",
+      id: "step1",
       order: 1,
-      title: "Event 1 — First Destination",
-      shortTitle: "First Destination",
-      keys: "First Destination, first relic, first clue",
+      title: "Step 1 — First Objective",
+      shortTitle: "First Objective",
+      keys: "step 1, first objective, first milestone",
       completionEntry:
-        "The first objective was completed at the First Destination.",
+        "The first objective was completed.",
       leadEntry:
-        "The journal points toward the First Destination, where the first objective can be completed.",
+        "The first objective is now active.",
       nextLead:
-        "The journal now points toward the Second Destination.",
-      locationTerms: [
-        "First Destination",
-        "other name for first destination"
-      ],
-      completionTerms: [
-        "found",
-        "claimed",
-        "took",
-        "won",
-        "recovered",
-        "obtained",
-        "solved",
-        "activated"
-      ],
-      keyTerms: [
-        "first relic",
-        "first clue",
-        "the objective",
-        "the item"
-      ],
-      completionRegex: [
-        /(the relic was theirs|the clue was solved|the mechanism activated)/i
-      ]
-    },
+        "A new lead points toward the second objective.",
 
-    {
-      id: "e2",
-      order: 2,
-      title: "Event 2 — Second Destination",
-      shortTitle: "Second Destination",
-      keys: "Second Destination, second relic, second clue",
-      completionEntry:
-        "The second objective was completed at the Second Destination.",
-      leadEntry:
-        "The journal points toward the Second Destination.",
-      nextLead:
-        "The journal now points toward the Final Destination.",
+      // Terms that help identify the active place / event / target
       locationTerms: [
-        "Second Destination"
+        "first objective location",
+        "first objective target"
       ],
-      completionTerms: [
-        "found",
-        "claimed",
-        "took",
-        "won",
-        "recovered",
-        "obtained",
-        "solved",
-        "activated"
-      ],
-      keyTerms: [
-        "second relic",
-        "second clue",
-        "the objective",
-        "the item"
-      ],
-      completionRegex: [
-        /(the relic was theirs|the clue was solved|the mechanism activated)/i
-      ]
-    },
 
-    {
-      id: "final",
-      order: 3,
-      title: "Final Event — Final Destination",
-      shortTitle: "Final Destination",
-      keys: "Final Destination, final relic, finale",
-      completionEntry:
-        "The final objective was completed and the quest ended.",
-      leadEntry:
-        "The journal points toward the Final Destination.",
-      nextLead:
-        "The quest is complete.",
-      locationTerms: [
-        "Final Destination"
-      ],
+      // Verbs that indicate the objective was actually completed
       completionTerms: [
         "found",
         "claimed",
-        "placed",
-        "restored",
+        "recovered",
+        "secured",
+        "obtained",
         "activated",
+        "delivered",
+        "defeated",
+        "cleared",
+        "finished",
+        "completed"
+      ],
+
+      // Specific item / reward / target / step language tied to this objective
+      keyTerms: [
+        "first objective",
+        "first milestone",
+        "quest item",
+        "target"
+      ],
+
+      // Optional explicit completion patterns
+      completionRegex: [
+        /\b(the objective was complete|the target was defeated|the item was secured)\b/i
+      ]
+    },
+
+    {
+      id: "step2",
+      order: 2,
+      title: "Step 2 — Second Objective",
+      shortTitle: "Second Objective",
+      keys: "step 2, second objective, second milestone",
+      completionEntry:
+        "The second objective was completed.",
+      leadEntry:
+        "The second objective is now active.",
+      nextLead:
+        "A new lead points toward the third objective.",
+      locationTerms: [
+        "second objective location",
+        "second objective target"
+      ],
+      completionTerms: [
+        "found",
+        "claimed",
+        "recovered",
+        "secured",
+        "obtained",
+        "activated",
+        "delivered",
+        "defeated",
+        "cleared",
+        "finished",
         "completed"
       ],
       keyTerms: [
-        "final relic",
-        "the objective",
-        "the item",
-        "the quest"
+        "second objective",
+        "second milestone",
+        "quest item",
+        "target"
       ],
       completionRegex: [
-        /(the ritual was complete|the quest was over|the final door opened)/i
+        /\b(the objective was complete|the target was defeated|the item was secured)\b/i
+      ]
+    },
+
+    {
+      id: "step3",
+      order: 3,
+      title: "Step 3 — Final Objective",
+      shortTitle: "Final Objective",
+      keys: "step 3, final objective, final milestone",
+      completionEntry:
+        "The final objective was completed.",
+      leadEntry:
+        "The final objective is now active.",
+      nextLead:
+        "The quest is complete.",
+      locationTerms: [
+        "final objective location",
+        "final objective target"
+      ],
+      completionTerms: [
+        "found",
+        "claimed",
+        "recovered",
+        "secured",
+        "obtained",
+        "activated",
+        "delivered",
+        "defeated",
+        "cleared",
+        "finished",
+        "completed"
+      ],
+      keyTerms: [
+        "final objective",
+        "final milestone",
+        "quest item",
+        "target"
+      ],
+      completionRegex: [
+        /\b(the final objective was complete|the quest was complete|victory was secured)\b/i
       ]
     }
   ]
 };
+
   function safeString(v) {
     return typeof v === "string" ? v : "";
   }
@@ -165,6 +187,55 @@
   function textHasAnyRegex(text, regexes) {
     if (!Array.isArray(regexes) || !regexes.length) return false;
     return regexes.some(rx => rx instanceof RegExp && rx.test(text));
+  }
+
+  function textHasProximityPair(text, leftTerms, rightTerms, maxGap = 40) {
+    const body = safeString(text);
+    if (!body) return false;
+    if (!Array.isArray(leftTerms) || !leftTerms.length) return false;
+    if (!Array.isArray(rightTerms) || !rightTerms.length) return false;
+
+    for (const left of leftTerms) {
+      for (const right of rightTerms) {
+        const a = escapeRegex(left);
+        const b = escapeRegex(right);
+
+        const forward = new RegExp(`${a}[\\s\\S]{0,${maxGap}}${b}`, "i");
+        const backward = new RegExp(`${b}[\\s\\S]{0,${maxGap}}${a}`, "i");
+
+        if (forward.test(body) || backward.test(body)) return true;
+      }
+    }
+
+    return false;
+  }
+
+  function textHasNegativeCompletion(text) {
+    return /\b(almost|nearly|not yet|failed to|couldn'?t|could not|unable to|trying to|tried to|looking for|searching for|needed to find|need to find|hoping to find|wanted to find|wasn'?t there|was not there|missing|gone|still hidden)\b/i.test(
+      safeString(text)
+    );
+  }
+
+  function textHasAcquisitionPattern(text, event) {
+    const body = safeString(text);
+    if (!body) return false;
+
+    const verbs = Array.isArray(event.completionTerms) ? event.completionTerms : [];
+    const keys = Array.isArray(event.keyTerms) ? event.keyTerms : [];
+
+    for (const verb of verbs) {
+      for (const key of keys) {
+        const v = escapeRegex(verb);
+        const k = escapeRegex(key);
+
+        const verbThenKey = new RegExp(`\\b${v}\\b[\\s\\S]{0,40}\\b${k}\\b`, "i");
+        const keyThenVerb = new RegExp(`\\b${k}\\b[\\s\\S]{0,20}\\b(?:was|were|is|are|had been|has been)?\\s*${v}\\b`, "i");
+
+        if (verbThenKey.test(body) || keyThenVerb.test(body)) return true;
+      }
+    }
+
+    return false;
   }
 
   function ensureCardsArray() {
@@ -243,7 +314,7 @@
       : "none yet";
 
     return [
-      `- ${QUEST_CONFIG.progressLabels.status}: ${s.completedIds.length}/${QUEST_CONFIG.events.length - 1} main steps completed.`,
+      `- ${QUEST_CONFIG.progressLabels.status}: ${s.completedIds.length}/${QUEST_CONFIG.events.length} steps completed.`,
       `- ${QUEST_CONFIG.progressLabels.lastCompleted}: ${s.lastCompletedTitle || "none"}.`,
       `- ${QUEST_CONFIG.progressLabels.currentLead}: ${s.currentLead}`,
       `- ${QUEST_CONFIG.progressLabels.completed}: ${completedTitles}.`
@@ -299,12 +370,24 @@
   }
 
   function eventWasCompletedInText(text, event) {
-    const hasLocation = textHasAnyTerm(text, event.locationTerms);
-    const hasCompletionVerb = textHasAnyTerm(text, event.completionTerms);
-    const hasKeyTerm = textHasAnyTerm(text, event.keyTerms);
-    const hasRegexCompletion = textHasAnyRegex(text, event.completionRegex);
+    const body = safeString(text);
+    if (!body.trim()) return false;
 
-    return hasRegexCompletion || ((hasLocation || hasKeyTerm) && hasCompletionVerb);
+    if (textHasNegativeCompletion(body)) return false;
+    if (textHasAnyRegex(body, event.completionRegex)) return true;
+
+    const hasAcquisition = textHasAcquisitionPattern(body, event);
+    if (!hasAcquisition) return false;
+
+    const hasSpecificKey = textHasAnyTerm(body, event.keyTerms);
+    const hasLocation = textHasAnyTerm(body, event.locationTerms);
+    const keyNearVerb = textHasProximityPair(body, event.keyTerms, event.completionTerms, 40);
+    const locationNearKey = textHasProximityPair(body, event.locationTerms, event.keyTerms, 120);
+
+    if (hasSpecificKey && keyNearVerb) return true;
+    if (hasLocation && hasSpecificKey && locationNearKey && keyNearVerb) return true;
+
+    return false;
   }
 
   function scanActiveEvent(text) {
