@@ -15,7 +15,7 @@ It is designed for scenarios where AI memory drift causes problems with:
 
 ### UPDATE - SIDE QUESTS
 
-Questline now allows for non linear side quests in addition to the above.
+- Questline now allows for non linear side quests in addition to the above.
 
 Questline is **config-driven**. You reuse the same engine across different scenarios by editing one data object near the top of the script.
 
