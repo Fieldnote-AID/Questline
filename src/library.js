@@ -1,22 +1,32 @@
-/* === Hybrid Quest Director ===
+/* === Hybrid Quest Director: Multi-Linear Version ===
 
 Paste near the END of library.js
 
 WHAT THIS VERSION DOES
-- Supports one linear MAIN quest chain
+- Supports MULTIPLE linear quest chains at once
+- Each linear chain has its own progress, lead, and autoStart behavior
 - Supports optional SIDE quests that can start, progress, and complete independently
 - Lets either player input OR AI output trigger quest updates
-- Uses generic example quests suitable for a public repo
 - Creates/updates quest cards at START / MID / COMPLETION
 - Updates pinned Progress + Current Lead cards
 
 HOW TO USE
 1. Edit QUEST_CONFIG only
-2. Put main quests in events with track: "main" and order: 1, 2, 3...
+2. Put ordered questline steps in events with:
+   - track: "linear"
+   - chain: "main" / "guild" / "investigation" / etc
+   - order: 1, 2, 3...
 3. Put side quests in events with track: "side"
-4. For side quests, define activationTerms or activationRegex
-5. For mid-stage updates, define midEntry plus midTerms or midRegex
-6. For completion, define completion fields as usual
+4. For a questline that should start immediately on scenario kickoff:
+   - set QUEST_CONFIG.linearTracks.<chainId>.autoStart = true
+5. For a questline that should NOT start immediately:
+   - set QUEST_CONFIG.linearTracks.<chainId>.autoStart = false
+   - then start it via:
+     a) the first quest's activationTerms / activationRegex
+     b) QuestDirector.startChain("chainId")
+     c) QuestDirector.start("questId") on that chain's current step
+6. Backward compatibility:
+   - track: "main" is treated like track: "linear", chain: "main"
 
 IF USING INNERSELF
 - Paste this below InnerSelf
@@ -31,15 +41,16 @@ OPTIONAL MANUAL CONTROLS
 - QuestDirector.progress("questId")
 - QuestDirector.complete("questId")
 - QuestDirector.mark("questId")
-- QuestDirector.reset()
+- QuestDirector.startChain("chainId")
 - QuestDirector.refresh()
+- QuestDirector.reset()
 */
 
 (function installHybridQuestDirector() {
   "use strict";
 
   const QUEST_CONFIG = {
-    stateKey: "HybridQuestDirector_Template",
+    stateKey: "HybridQuestDirector_MultiLinear_Template",
     cardType: "class",
 
     progressCard: {
@@ -53,22 +64,39 @@ OPTIONAL MANUAL CONTROLS
     },
 
     progressLabels: {
-      mainStatus: "Main quest status",
-      mainLastCompleted: "Last completed main step",
-      mainCurrentLead: "Main lead",
+      linearTracks: "Linear questlines",
       activeSideQuests: "Active side quests",
       completedSideQuests: "Completed side quests"
     },
 
-    initialMainLead: "A first clue points toward the opening step of a larger quest.",
+    // Per-chain config.
+    // autoStart controls whether the FIRST step in that chain begins automatically
+    // during scenario kickoff / refresh.
+    linearTracks: {
+      main: {
+        label: "Main Quest",
+        autoStart: true,
+        initialLead: "A first clue points toward the opening step of a larger quest.",
+        inactiveLead: "A first clue points toward the opening step of a larger quest.",
+        completeLead: "The main quest is complete."
+      },
+      guild: {
+        label: "Guild Questline",
+        autoStart: false,
+        initialLead: "No guild lead is active yet.",
+        inactiveLead: "No guild lead is active yet.",
+        completeLead: "The guild questline is complete."
+      }
+    },
 
     events: [
       // =========================
-      // MAIN QUEST CHAIN EXAMPLES
+      // LINEAR CHAIN: MAIN
       // =========================
       {
         id: "main_relic_map",
-        track: "main",
+        track: "linear",
+        chain: "main",
         mode: "linear",
         order: 1,
         title: "Main Quest — The Hidden Map",
@@ -80,6 +108,10 @@ OPTIONAL MANUAL CONTROLS
         midLead: "Study the map closely and uncover the destination it conceals.",
         completionEntry: "The hidden map has been recovered and its meaning has started to unfold.",
         nextLead: "The map points toward an old chamber tied to the next objective.",
+        activationTerms: [ "hidden map", "relic map", "map fragment" ],
+        activationRegex: [
+          /\b(a hidden map surfaced|someone found part of a map)\b/i
+        ],
         midTerms: [ "decoded", "translated", "partial map", "hidden markings", "cipher", "strange map" ],
         midRegex: [
           /\b(the map was incomplete|the map was encoded|the markings began to make sense)\b/i
@@ -93,7 +125,8 @@ OPTIONAL MANUAL CONTROLS
       },
       {
         id: "main_old_chamber",
-        track: "main",
+        track: "linear",
+        chain: "main",
         mode: "linear",
         order: 2,
         title: "Main Quest — The Old Chamber",
@@ -116,34 +149,69 @@ OPTIONAL MANUAL CONTROLS
           /\b(the old chamber was opened|the sealed chamber was breached|the chamber revealed its secret)\b/i
         ]
       },
+
+      // =========================
+      // LINEAR CHAIN: GUILD
+      // =========================
       {
-        id: "main_final_confrontation",
-        track: "main",
+        id: "guild_invitation",
+        track: "linear",
+        chain: "guild",
         mode: "linear",
-        order: 3,
-        title: "Main Quest — Final Confrontation",
-        shortTitle: "Final Confrontation",
-        keys: "final confrontation, final step, main quest step 3",
-        startEntry: "The trail leads toward a final confrontation.",
-        leadEntry: "Face the final obstacle and decide how the quest ends.",
-        midEntry: "The final confrontation is near, and the cost of victory is becoming clear.",
-        midLead: "Prepare for the confrontation and decide what you are willing to risk.",
-        completionEntry: "The final confrontation has ended and the quest is complete.",
-        nextLead: "The main quest is complete.",
-        midTerms: [ "prepared", "gathered allies", "final ritual", "last defense", "last stand" ],
-        midRegex: [
-          /\b(the end was close|the confrontation was coming|the final choice was near)\b/i
+        order: 1,
+        title: "Guild Quest — The Invitation",
+        shortTitle: "The Invitation",
+        keys: "guild invitation, sealed invitation, guild summons",
+        startEntry: "A private guild has begun to take interest.",
+        leadEntry: "Follow the invitation and learn what the guild wants.",
+        midEntry: "The guild's offer comes with conditions and hidden motives.",
+        midLead: "Decide whether to accept the guild's terms or push deeper for answers.",
+        completionEntry: "The guild's invitation has been answered, and the relationship is now real.",
+        nextLead: "The guild expects a proving task before offering trust.",
+        activationTerms: [ "guild invitation", "sealed invitation", "guild summons", "private guild" ],
+        activationRegex: [
+          /\b(an invitation arrived|the guild reached out|someone summoned them to the guild)\b/i
         ],
-        locationTerms: [ "sanctum", "summit", "throne room", "ritual site", "final chamber" ],
-        completionTerms: [ "defeated", "stopped", "claimed", "survived", "ended", "completed" ],
-        keyTerms: [ "final confrontation", "final enemy", "final ritual", "quest" ],
+        midTerms: [ "terms", "conditions", "hidden agenda", "offer", "suspicious contract" ],
+        midRegex: [
+          /\b(the offer had conditions|the guild wanted something in return)\b/i
+        ],
+        locationTerms: [ "guildhall", "manor", "hall", "chapterhouse", "meeting room" ],
+        completionTerms: [ "accepted", "answered", "met", "joined", "agreed", "entered" ],
+        keyTerms: [ "guild invitation", "invitation", "guild summons", "offer" ],
         completionRegex: [
-          /\b(the final confrontation was over|the last obstacle was defeated|the quest was complete)\b/i
+          /\b(the invitation was accepted|they answered the guild's summons|the guild meeting was concluded)\b/i
+        ]
+      },
+      {
+        id: "guild_proving_task",
+        track: "linear",
+        chain: "guild",
+        mode: "linear",
+        order: 2,
+        title: "Guild Quest — The Proving Task",
+        shortTitle: "The Proving Task",
+        keys: "guild proving task, initiation task, guild trial",
+        startEntry: "The guild has assigned a proving task.",
+        leadEntry: "Complete the proving task and decide how much of yourself to reveal.",
+        midEntry: "The proving task is more dangerous than the guild admitted.",
+        midLead: "Finish the task without giving the guild more leverage than it deserves.",
+        completionEntry: "The proving task is done, and the guild must now decide what comes next.",
+        nextLead: "The guild questline is complete.",
+        midTerms: [ "ambush", "test", "set up", "dangerous assignment", "trap" ],
+        midRegex: [
+          /\b(the test was real|the task was a trap|the proving task went wrong)\b/i
+        ],
+        locationTerms: [ "ruins", "vault", "street", "warehouse", "crypt" ],
+        completionTerms: [ "completed", "survived", "finished", "delivered", "returned", "proved" ],
+        keyTerms: [ "proving task", "guild trial", "initiation task", "assignment" ],
+        completionRegex: [
+          /\b(the proving task was complete|they survived the guild trial|the initiation task was finished)\b/i
         ]
       },
 
       // =========================
-      // SIDE QUEST EXAMPLES
+      // SIDE QUEST EXAMPLE
       // =========================
       {
         id: "side_missing_scout",
@@ -171,62 +239,6 @@ OPTIONAL MANUAL CONTROLS
         keyTerms: [ "missing scout", "scout", "trail", "camp" ],
         completionRegex: [
           /\b(the missing scout was found|the scout's fate was uncovered|the truth of the vanished scout was revealed)\b/i
-        ]
-      },
-      {
-        id: "side_strange_well",
-        track: "side",
-        mode: "oneoff",
-        title: "Side Quest — The Strange Well",
-        shortTitle: "The Strange Well",
-        keys: "strange well, cursed well, old well",
-        activationEntry: "Locals warn of an old well that has started causing trouble again.",
-        startEntry: "An old well is behaving strangely and may be tied to something dangerous below.",
-        leadEntry: "Investigate the strange well and determine whether it is cursed, haunted, or worse.",
-        midEntry: "The well is active, and something below it answers when disturbed.",
-        midLead: "Descend, observe, or seal the well before the problem spreads.",
-        completionEntry: "The mystery of the strange well has been resolved.",
-        activationTerms: [ "strange well", "old well", "cursed well", "haunted well" ],
-        activationRegex: [
-          /\b(the well was wrong|something was moving below the well)\b/i
-        ],
-        midTerms: [ "echo", "whispering", "deep water", "movement below", "strange sound" ],
-        midRegex: [
-          /\b(the well answered back|there was something beneath the water|the whispers grew louder)\b/i
-        ],
-        locationTerms: [ "well", "village", "ruins", "courtyard", "shrine" ],
-        completionTerms: [ "sealed", "purified", "entered", "survived", "stopped", "resolved" ],
-        keyTerms: [ "strange well", "old well", "curse", "presence below" ],
-        completionRegex: [
-          /\b(the well was sealed|the strange well was resolved|the curse below the well was broken)\b/i
-        ]
-      },
-      {
-        id: "side_bandit_cache",
-        track: "side",
-        mode: "oneoff",
-        title: "Side Quest — The Bandit Cache",
-        shortTitle: "The Bandit Cache",
-        keys: "bandit cache, hidden cache, stolen goods",
-        activationEntry: "A rumor points toward a hidden cache of stolen goods somewhere off the main road.",
-        startEntry: "A hidden cache may hold supplies, evidence, or something more valuable than expected.",
-        leadEntry: "Find the bandit cache and decide what to do with what it contains.",
-        midEntry: "The cache is protected by more than a simple hiding place.",
-        midLead: "Open the cache safely and learn who it truly belongs to.",
-        completionEntry: "The bandit cache has been found and dealt with.",
-        activationTerms: [ "bandit cache", "hidden cache", "stolen goods", "buried loot" ],
-        activationRegex: [
-          /\b(there was a cache nearby|someone hid stolen goods off the road)\b/i
-        ],
-        midTerms: [ "trap", "guarded cache", "false trail", "buried chest", "hidden stash" ],
-        midRegex: [
-          /\b(the cache was trapped|someone was guarding the stash|the loot was hidden well)\b/i
-        ],
-        locationTerms: [ "road", "camp", "ravine", "woods", "bridge" ],
-        completionTerms: [ "found", "claimed", "returned", "opened", "secured", "exposed" ],
-        keyTerms: [ "bandit cache", "stash", "stolen goods", "buried loot" ],
-        completionRegex: [
-          /\b(the bandit cache was found|the hidden stash was opened|the stolen goods were recovered)\b/i
         ]
       }
     ]
@@ -360,18 +372,110 @@ OPTIONAL MANUAL CONTROLS
     return String(actionCount) + "|" + String(historyLen);
   }
 
+  function humanizeId(text) {
+    const raw = safeString(text).replace(/[_-]+/g, " ").trim();
+    if (!raw) return "Questline";
+    return raw.charAt(0).toUpperCase() + raw.slice(1);
+  }
+
   function getAllQuests() {
     return Array.isArray(QUEST_CONFIG.events) ? QUEST_CONFIG.events : [];
   }
 
-  function getMainQuests() {
+  function getQuestTrackType(quest) {
+    if (!quest) return "";
+    if (quest.track === "side") return "side";
+    if (quest.track === "linear") return "linear";
+    if (quest.track === "main") return "linear";
+    if (quest.mode === "linear") return "linear";
+    return "";
+  }
+
+  function getQuestChainId(quest) {
+    if (getQuestTrackType(quest) !== "linear") return "";
+    const raw = safeString(
+      quest.chain ||
+      quest.line ||
+      (quest.track === "main" ? "main" : "")
+    ).trim();
+    return raw || "main";
+  }
+
+  function buildDefaultLinearTrackConfig(chainId) {
+    const isMain = chainId === "main";
+    const fallbackLead = isMain
+      ? safeString(QUEST_CONFIG.initialMainLead || "A first clue points toward the opening step of a larger quest.")
+      : "No active lead.";
+
+    return {
+      label: isMain ? "Main Quest" : humanizeId(chainId),
+      autoStart: isMain,
+      initialLead: fallbackLead,
+      inactiveLead: fallbackLead,
+      completeLead: isMain ? "The main quest is complete." : (humanizeId(chainId) + " is complete.")
+    };
+  }
+
+  function getLinearTrackConfigs() {
+    const map = {};
+    const raw = QUEST_CONFIG.linearTracks;
+
+    if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+      const configIds = Object.keys(raw);
+      for (let i = 0; i < configIds.length; i++) {
+        const chainId = configIds[i];
+        const base = buildDefaultLinearTrackConfig(chainId);
+        const cfg = raw[chainId] || {};
+        map[chainId] = {
+          label: safeString(cfg.label) || base.label,
+          autoStart: typeof cfg.autoStart === "boolean" ? cfg.autoStart : base.autoStart,
+          initialLead: safeString(cfg.initialLead) || base.initialLead,
+          inactiveLead: safeString(cfg.inactiveLead) || safeString(cfg.initialLead) || base.inactiveLead,
+          completeLead: safeString(cfg.completeLead) || base.completeLead
+        };
+      }
+    }
+
+    const quests = getAllQuests();
+    for (let i = 0; i < quests.length; i++) {
+      const q = quests[i];
+      if (getQuestTrackType(q) !== "linear") continue;
+      const chainId = getQuestChainId(q);
+      if (!map[chainId]) {
+        map[chainId] = buildDefaultLinearTrackConfig(chainId);
+      }
+    }
+
+    if (!Object.keys(map).length) {
+      map.main = buildDefaultLinearTrackConfig("main");
+    }
+
+    return map;
+  }
+
+  function getLinearTrackIds() {
+    return Object.keys(getLinearTrackConfigs());
+  }
+
+  function getLinearTrackConfig(chainId) {
+    const configs = getLinearTrackConfigs();
+    return configs[chainId] || buildDefaultLinearTrackConfig(chainId);
+  }
+
+  function getLinearQuests(chainId) {
     return getAllQuests()
-      .filter(function(q) { return q.track === "main"; })
-      .sort(function(a, b) { return (a.order || 0) - (b.order || 0); });
+      .filter(function(q) {
+        return getQuestTrackType(q) === "linear" && getQuestChainId(q) === chainId;
+      })
+      .sort(function(a, b) {
+        return (a.order || 0) - (b.order || 0);
+      });
   }
 
   function getSideQuests() {
-    return getAllQuests().filter(function(q) { return q.track === "side"; });
+    return getAllQuests().filter(function(q) {
+      return getQuestTrackType(q) === "side";
+    });
   }
 
   function getDefaultQuestState(quest) {
@@ -383,26 +487,52 @@ OPTIONAL MANUAL CONTROLS
     };
   }
 
+  function getDefaultLinearTrackState(chainId) {
+    const cfg = getLinearTrackConfig(chainId);
+    return {
+      id: chainId,
+      active: false,
+      currentIndex: 0,
+      completedIds: [],
+      lastCompletedTitle: null,
+      currentLead: safeString(cfg.initialLead || cfg.inactiveLead || "No active lead.")
+    };
+  }
+
   function getState() {
     globalThis.state ??= {};
-    if (!state[QUEST_CONFIG.stateKey]) {
-      const questStates = {};
-      const quests = getAllQuests();
-      for (let i = 0; i < quests.length; i++) {
-        questStates[quests[i].id] = getDefaultQuestState(quests[i]);
-      }
+    state[QUEST_CONFIG.stateKey] ??= {};
 
-      state[QUEST_CONFIG.stateKey] = {
-        mainIndex: 0,
-        mainCompletedIds: [],
-        sideCompletedIds: [],
-        questStates: questStates,
-        lastCompletedMainTitle: null,
-        lastScanFingerprint: "",
-        currentMainLead: QUEST_CONFIG.initialMainLead
-      };
+    const s = state[QUEST_CONFIG.stateKey];
+    s.questStates ??= {};
+    s.linearTracks ??= {};
+    s.sideCompletedIds = Array.isArray(s.sideCompletedIds) ? s.sideCompletedIds : [];
+    s.lastScanFingerprint = typeof s.lastScanFingerprint === "string" ? s.lastScanFingerprint : "";
+
+    const quests = getAllQuests();
+    for (let i = 0; i < quests.length; i++) {
+      const q = quests[i];
+      if (!s.questStates[q.id]) {
+        s.questStates[q.id] = getDefaultQuestState(q);
+      }
     }
-    return state[QUEST_CONFIG.stateKey];
+
+    const chainIds = getLinearTrackIds();
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      if (!s.linearTracks[chainId]) {
+        s.linearTracks[chainId] = getDefaultLinearTrackState(chainId);
+      } else {
+        const ls = s.linearTracks[chainId];
+        ls.active = !!ls.active;
+        ls.currentIndex = Number.isInteger(ls.currentIndex) ? ls.currentIndex : 0;
+        ls.completedIds = Array.isArray(ls.completedIds) ? ls.completedIds : [];
+        ls.lastCompletedTitle = safeString(ls.lastCompletedTitle) || null;
+        ls.currentLead = safeString(ls.currentLead) || getDefaultLinearTrackState(chainId).currentLead;
+      }
+    }
+
+    return s;
   }
 
   function getQuestState(questId) {
@@ -414,10 +544,40 @@ OPTIONAL MANUAL CONTROLS
     return s.questStates[questId] || null;
   }
 
-  function getCurrentMainQuest() {
+  function getLinearTrackState(chainId) {
     const s = getState();
-    const main = getMainQuests();
-    return main[s.mainIndex] || null;
+    if (!s.linearTracks[chainId]) {
+      s.linearTracks[chainId] = getDefaultLinearTrackState(chainId);
+    }
+    return s.linearTracks[chainId];
+  }
+
+  function getCurrentLinearQuest(chainId) {
+    const qs = getLinearTrackState(chainId);
+    const quests = getLinearQuests(chainId);
+    return quests[qs.currentIndex] || null;
+  }
+
+  function isLinearTrackComplete(chainId) {
+    const quests = getLinearQuests(chainId);
+    if (!quests.length) return false;
+    const ls = getLinearTrackState(chainId);
+    return ls.completedIds.length >= quests.length || ls.currentIndex >= quests.length;
+  }
+
+  function getInactiveTrackLead(chainId) {
+    const cfg = getLinearTrackConfig(chainId);
+    return safeString(cfg.inactiveLead || cfg.initialLead || "No active lead.");
+  }
+
+  function getDefaultTrackLead(chainId) {
+    const cfg = getLinearTrackConfig(chainId);
+    return safeString(cfg.initialLead || cfg.inactiveLead || "No active lead.");
+  }
+
+  function getCompleteTrackLead(chainId) {
+    const cfg = getLinearTrackConfig(chainId);
+    return safeString(cfg.completeLead || (cfg.label ? cfg.label + " is complete." : "Questline is complete."));
   }
 
   function getLatestText(explicitText) {
@@ -455,13 +615,61 @@ OPTIONAL MANUAL CONTROLS
     });
   }
 
+  function ensureAutoStartedLinearTracks() {
+    const chainIds = getLinearTrackIds();
+
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      const cfg = getLinearTrackConfig(chainId);
+      const ls = getLinearTrackState(chainId);
+
+      if (!cfg.autoStart || ls.active || isLinearTrackComplete(chainId)) continue;
+
+      const currentQuest = getCurrentLinearQuest(chainId);
+      if (!currentQuest) continue;
+
+      const currentState = getQuestState(currentQuest.id);
+      if (!currentState || currentState.stage !== "inactive") continue;
+
+      ls.active = true;
+      ls.currentLead = currentQuest.leadEntry || currentQuest.startEntry || getDefaultTrackLead(chainId);
+      currentState.stage = "started";
+      currentState.started = true;
+
+      refreshQuestCard(currentQuest);
+    }
+  }
+
   function buildLeadEntry() {
-    const s = getState();
-    const main = getCurrentMainQuest();
+    const lines = [];
+    const chainIds = getLinearTrackIds();
     const activeSides = getActiveSideQuests();
 
-    const lines = [];
-    lines.push("- Main: " + (main ? (s.currentMainLead || main.leadEntry || main.startEntry || "No current main lead.") : "No active main quest."));
+    lines.push("- " + (QUEST_CONFIG.progressLabels.linearTracks || "Linear questlines") + ":");
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      const cfg = getLinearTrackConfig(chainId);
+      const ls = getLinearTrackState(chainId);
+      const currentQuest = getCurrentLinearQuest(chainId);
+
+      let lead;
+      if (isLinearTrackComplete(chainId)) {
+        lead = getCompleteTrackLead(chainId);
+      } else if (!ls.active) {
+        lead = getInactiveTrackLead(chainId);
+      } else if (currentQuest) {
+        const currentState = getQuestState(currentQuest.id);
+        if (currentState && currentState.stage === "mid") {
+          lead = currentQuest.midLead || ls.currentLead || currentQuest.leadEntry || currentQuest.startEntry || getDefaultTrackLead(chainId);
+        } else {
+          lead = ls.currentLead || currentQuest.leadEntry || currentQuest.startEntry || getDefaultTrackLead(chainId);
+        }
+      } else {
+        lead = getCompleteTrackLead(chainId);
+      }
+
+      lines.push("  - " + cfg.label + ": " + lead);
+    }
 
     if (activeSides.length) {
       lines.push("- Side quests:");
@@ -481,19 +689,42 @@ OPTIONAL MANUAL CONTROLS
   }
 
   function buildProgressEntry() {
-    const s = getState();
-    const main = getMainQuests();
+    const lines = [];
+    const chainIds = getLinearTrackIds();
     const activeSides = getActiveSideQuests();
 
-    const completedMainTitles = s.mainCompletedIds.length
-      ? s.mainCompletedIds.map(function(id) {
-          const q = main.find(function(item) { return item.id === id; });
-          return q ? (q.shortTitle || q.title) : null;
-        }).filter(Boolean).join("; ")
-      : "none yet";
+    lines.push("- " + (QUEST_CONFIG.progressLabels.linearTracks || "Linear questlines") + ":");
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      const cfg = getLinearTrackConfig(chainId);
+      const ls = getLinearTrackState(chainId);
+      const quests = getLinearQuests(chainId);
 
-    const completedSideTitles = s.sideCompletedIds.length
-      ? s.sideCompletedIds.map(function(id) {
+      const completedTitles = ls.completedIds.length
+        ? ls.completedIds.map(function(id) {
+            const q = quests.find(function(item) { return item.id === id; });
+            return q ? (q.shortTitle || q.title) : null;
+          }).filter(Boolean).join("; ")
+        : "none yet";
+
+      let status;
+      if (!quests.length) {
+        status = "no steps configured";
+      } else if (isLinearTrackComplete(chainId)) {
+        status = "complete (" + ls.completedIds.length + "/" + quests.length + ")";
+      } else if (!ls.active) {
+        status = "inactive (0/" + quests.length + ")";
+      } else {
+        status = ls.completedIds.length + "/" + quests.length + " steps completed";
+      }
+
+      lines.push("  - " + cfg.label + ": " + status + ".");
+      lines.push("    - Last completed: " + (ls.lastCompletedTitle || "none") + ".");
+      lines.push("    - Completed steps: " + completedTitles + ".");
+    }
+
+    const completedSideTitles = getState().sideCompletedIds.length
+      ? getState().sideCompletedIds.map(function(id) {
           const q = getSideQuests().find(function(item) { return item.id === id; });
           return q ? (q.shortTitle || q.title) : null;
         }).filter(Boolean).join("; ")
@@ -503,31 +734,14 @@ OPTIONAL MANUAL CONTROLS
       ? activeSides.map(function(q) { return q.shortTitle || q.title; }).join("; ")
       : "none";
 
-    return [
-      "- " + QUEST_CONFIG.progressLabels.mainStatus + ": " + s.mainCompletedIds.length + "/" + main.length + " steps completed.",
-      "- " + QUEST_CONFIG.progressLabels.mainLastCompleted + ": " + (s.lastCompletedMainTitle || "none") + ".",
-      "- " + QUEST_CONFIG.progressLabels.mainCurrentLead + ": " + (s.currentMainLead || QUEST_CONFIG.initialMainLead),
-      "- Completed main steps: " + completedMainTitles + ".",
-      "- " + QUEST_CONFIG.progressLabels.activeSideQuests + ": " + activeSideTitles + ".",
-      "- " + QUEST_CONFIG.progressLabels.completedSideQuests + ": " + completedSideTitles + "."
-    ].join("\n");
-  }
+    lines.push("- " + (QUEST_CONFIG.progressLabels.activeSideQuests || "Active side quests") + ": " + activeSideTitles + ".");
+    lines.push("- " + (QUEST_CONFIG.progressLabels.completedSideQuests || "Completed side quests") + ": " + completedSideTitles + ".");
 
-  function ensureMainQuestStarted() {
-    const main = getCurrentMainQuest();
-    if (!main) return;
-
-    const qs = getQuestState(main.id);
-    if (qs.stage === "inactive") {
-      qs.stage = "started";
-      qs.started = true;
-      getState().currentMainLead = main.leadEntry || main.startEntry || QUEST_CONFIG.initialMainLead;
-      refreshQuestCard(main);
-    }
+    return lines.join("\n");
   }
 
   function refreshCoreCards() {
-    ensureMainQuestStarted();
+    ensureAutoStartedLinearTracks();
 
     upsertCard({
       title: QUEST_CONFIG.progressCard.title,
@@ -545,8 +759,15 @@ OPTIONAL MANUAL CONTROLS
       pinned: true
     });
 
-    const currentMain = getCurrentMainQuest();
-    if (currentMain) refreshQuestCard(currentMain);
+    const chainIds = getLinearTrackIds();
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      const ls = getLinearTrackState(chainId);
+      const currentQuest = getCurrentLinearQuest(chainId);
+      if (ls.active && currentQuest) {
+        refreshQuestCard(currentQuest);
+      }
+    }
 
     const activeSides = getActiveSideQuests();
     for (let i = 0; i < activeSides.length; i++) {
@@ -554,69 +775,140 @@ OPTIONAL MANUAL CONTROLS
     }
   }
 
-  function startQuest(quest) {
+  function startQuest(quest, options) {
+    options = options || {};
     if (!quest) return false;
+
+    const questTrack = getQuestTrackType(quest);
     const qs = getQuestState(quest.id);
     if (!qs || qs.stage !== "inactive") return false;
+
+    if (questTrack === "linear") {
+      const chainId = getQuestChainId(quest);
+      const currentQuest = getCurrentLinearQuest(chainId);
+      if (!currentQuest || currentQuest.id !== quest.id) return false;
+
+      const ls = getLinearTrackState(chainId);
+      ls.active = true;
+      ls.currentLead = quest.leadEntry || quest.startEntry || getDefaultTrackLead(chainId);
+    }
 
     qs.stage = "started";
     qs.started = true;
 
-    if (quest.track === "main") {
-      getState().currentMainLead = quest.leadEntry || quest.startEntry || QUEST_CONFIG.initialMainLead;
+    refreshQuestCard(quest);
+    if (!options.skipRefresh) refreshCoreCards();
+
+    if (!options.silent) {
+      try { state.message = "Quest started: " + quest.title; } catch (_) {}
     }
 
-    refreshQuestCard(quest);
-    refreshCoreCards();
-
-    try { state.message = "Quest started: " + quest.title; } catch (_) {}
     return true;
   }
 
-  function progressQuest(quest) {
+  function progressQuest(quest, options) {
+    options = options || {};
     if (!quest) return false;
+
+    const questTrack = getQuestTrackType(quest);
     const qs = getQuestState(quest.id);
     if (!qs || qs.stage === "inactive" || qs.stage === "mid" || qs.stage === "completed") return false;
 
-    qs.stage = "mid";
+    if (questTrack === "linear") {
+      const chainId = getQuestChainId(quest);
+      const currentQuest = getCurrentLinearQuest(chainId);
+      if (!currentQuest || currentQuest.id !== quest.id) return false;
 
-    if (quest.track === "main") {
-      getState().currentMainLead = quest.midLead || quest.leadEntry || quest.startEntry || QUEST_CONFIG.initialMainLead;
+      const ls = getLinearTrackState(chainId);
+      ls.active = true;
+      ls.currentLead = quest.midLead || quest.leadEntry || quest.startEntry || getDefaultTrackLead(chainId);
     }
 
-    refreshQuestCard(quest);
-    refreshCoreCards();
+    qs.stage = "mid";
 
-    try { state.message = "Quest progressed: " + quest.title; } catch (_) {}
+    refreshQuestCard(quest);
+    if (!options.skipRefresh) refreshCoreCards();
+
+    if (!options.silent) {
+      try { state.message = "Quest progressed: " + quest.title; } catch (_) {}
+    }
+
     return true;
   }
 
-  function completeQuest(quest) {
+  function completeQuest(quest, options) {
+    options = options || {};
     if (!quest) return false;
+
     const s = getState();
+    const questTrack = getQuestTrackType(quest);
     const qs = getQuestState(quest.id);
     if (!qs || qs.stage === "completed") return false;
 
-    qs.stage = "completed";
-    qs.completed = true;
+    if (questTrack === "linear") {
+      const chainId = getQuestChainId(quest);
+      const currentQuest = getCurrentLinearQuest(chainId);
+      if (!currentQuest || currentQuest.id !== quest.id) return false;
 
-    refreshQuestCard(quest);
+      const ls = getLinearTrackState(chainId);
+      const chainQuests = getLinearQuests(chainId);
 
-    if (quest.track === "main") {
-      if (s.mainCompletedIds.indexOf(quest.id) === -1) s.mainCompletedIds.push(quest.id);
-      s.lastCompletedMainTitle = quest.title;
-      s.mainIndex = Math.min(s.mainIndex + 1, getMainQuests().length);
-      s.currentMainLead = quest.nextLead || "The main quest advances.";
-      const nextMain = getCurrentMainQuest();
-      if (nextMain) startQuest(nextMain);
-    } else if (quest.track === "side") {
+      qs.stage = "completed";
+      qs.completed = true;
+      refreshQuestCard(quest);
+
+      if (ls.completedIds.indexOf(quest.id) === -1) ls.completedIds.push(quest.id);
+      ls.lastCompletedTitle = quest.title;
+      ls.currentIndex = Math.min(ls.currentIndex + 1, chainQuests.length);
+
+      const nextQuest = getCurrentLinearQuest(chainId);
+      if (nextQuest) {
+        const nextState = getQuestState(nextQuest.id);
+        if (nextState && nextState.stage === "inactive") {
+          nextState.stage = "started";
+          nextState.started = true;
+        }
+        ls.active = true;
+        ls.currentLead = nextQuest.leadEntry || nextQuest.startEntry || quest.nextLead || getDefaultTrackLead(chainId);
+        refreshQuestCard(nextQuest);
+      } else {
+        ls.currentLead = quest.nextLead || getCompleteTrackLead(chainId);
+      }
+    } else {
+      qs.stage = "completed";
+      qs.completed = true;
+      refreshQuestCard(quest);
+
       if (s.sideCompletedIds.indexOf(quest.id) === -1) s.sideCompletedIds.push(quest.id);
     }
 
-    refreshCoreCards();
+    if (!options.skipRefresh) refreshCoreCards();
 
-    try { state.message = "Quest completed: " + quest.title; } catch (_) {}
+    if (!options.silent) {
+      try { state.message = "Quest completed: " + quest.title; } catch (_) {}
+    }
+
     return true;
+  }
+
+  function startChain(chainId, options) {
+    options = options || {};
+    const currentQuest = getCurrentLinearQuest(chainId);
+    if (!currentQuest) return false;
+
+    const ls = getLinearTrackState(chainId);
+    if (isLinearTrackComplete(chainId)) return false;
+
+    if (ls.active) {
+      const qs = getQuestState(currentQuest.id);
+      if (qs && (qs.stage === "started" || qs.stage === "mid")) return false;
+      if (qs && qs.stage === "inactive") {
+        return startQuest(currentQuest, options);
+      }
+    }
+
+    ls.active = true;
+    return startQuest(currentQuest, options);
   }
 
   function questActivationMatched(text, quest) {
@@ -670,23 +962,42 @@ OPTIONAL MANUAL CONTROLS
 
     let changed = false;
 
-    // MAIN QUEST: only current main quest progresses
-    const main = getCurrentMainQuest();
-    if (main) {
-      const mainState = getQuestState(main.id);
+    // LINEAR CHAINS: only current quest in each chain can progress
+    const chainIds = getLinearTrackIds();
+    for (let i = 0; i < chainIds.length; i++) {
+      const chainId = chainIds[i];
+      const cfg = getLinearTrackConfig(chainId);
+      const ls = getLinearTrackState(chainId);
+      const currentQuest = getCurrentLinearQuest(chainId);
 
-      if (mainState.stage === "inactive") {
-        changed = startQuest(main) || changed;
-      }
+      if (!currentQuest || isLinearTrackComplete(chainId)) continue;
 
-      if (mainState.stage === "started" && (main.midEntry || (main.midTerms && main.midTerms.length) || (main.midRegex && main.midRegex.length))) {
-        if (questMidMatched(body, main)) {
-          changed = progressQuest(main) || changed;
+      if (!ls.active) {
+        const shouldStart =
+          cfg.autoStart ||
+          questActivationMatched(body, currentQuest) ||
+          questMidMatched(body, currentQuest) ||
+          questCompletionMatched(body, currentQuest);
+
+        if (shouldStart) {
+          changed = startQuest(currentQuest, { skipRefresh: true, silent: true }) || changed;
         }
       }
 
-      if ((mainState.stage === "started" || mainState.stage === "mid") && questCompletionMatched(body, main)) {
-        changed = completeQuest(main) || changed;
+      const currentState = getQuestState(currentQuest.id);
+      if (!currentState || currentState.stage === "inactive" || currentState.stage === "completed") {
+        continue;
+      }
+
+      if (currentState.stage === "started" && (currentQuest.midEntry || (currentQuest.midTerms && currentQuest.midTerms.length) || (currentQuest.midRegex && currentQuest.midRegex.length))) {
+        if (questMidMatched(body, currentQuest)) {
+          changed = progressQuest(currentQuest, { skipRefresh: true, silent: true }) || changed;
+        }
+      }
+
+      const stateAfterMid = getQuestState(currentQuest.id);
+      if (stateAfterMid && (stateAfterMid.stage === "started" || stateAfterMid.stage === "mid") && questCompletionMatched(body, currentQuest)) {
+        changed = completeQuest(currentQuest, { skipRefresh: true, silent: true }) || changed;
       }
     }
 
@@ -697,17 +1008,19 @@ OPTIONAL MANUAL CONTROLS
       const qs = getQuestState(q.id);
 
       if (qs.stage === "inactive" && questActivationMatched(body, q)) {
-        changed = startQuest(q) || changed;
+        changed = startQuest(q, { skipRefresh: true, silent: true }) || changed;
       }
 
-      if (qs.stage === "started" && (q.midEntry || (q.midTerms && q.midTerms.length) || (q.midRegex && q.midRegex.length))) {
+      const stateAfterStart = getQuestState(q.id);
+      if (stateAfterStart && stateAfterStart.stage === "started" && (q.midEntry || (q.midTerms && q.midTerms.length) || (q.midRegex && q.midRegex.length))) {
         if (questMidMatched(body, q)) {
-          changed = progressQuest(q) || changed;
+          changed = progressQuest(q, { skipRefresh: true, silent: true }) || changed;
         }
       }
 
-      if ((qs.stage === "started" || qs.stage === "mid") && questCompletionMatched(body, q)) {
-        changed = completeQuest(q) || changed;
+      const stateAfterMid = getQuestState(q.id);
+      if (stateAfterMid && (stateAfterMid.stage === "started" || stateAfterMid.stage === "mid") && questCompletionMatched(body, q)) {
+        changed = completeQuest(q, { skipRefresh: true, silent: true }) || changed;
       }
     }
 
@@ -754,6 +1067,10 @@ OPTIONAL MANUAL CONTROLS
     mark: function(id) {
       const q = getAllQuests().find(function(item) { return item.id === id; });
       return q ? completeQuest(q) : false;
+    },
+
+    startChain: function(chainId) {
+      return startChain(chainId);
     },
 
     refresh: function() {
