@@ -1,23 +1,18 @@
 # Questline
-### Automated quest progression for AI Dungeon
 
-Questline is a plug-in quest director for AI Dungeon. It keeps long-form adventures on track by automatically tracking milestones, updating the current objective, and creating quest progress cards as the story advances.
+Automated quest progression for AI Dungeon.
 
-Instead of manually editing Story Cards every time the party finds an item, completes a step, or moves to the next chapter, Questline handles that progression for you.
+Questline is a config-driven quest director for AI Dungeon. It tracks quest progression through Story Cards, keeps the current objective visible, and updates quest state when either player input or AI output shows that a step has advanced.
 
-It is designed for scenarios where AI memory drift causes problems with:
-- multi-step quests
-- item hunts
-- chapter sequencing
-- event chains
-- travel arcs
-- long-form story continuity
+The current version supports:
 
-### UPDATE - SIDE QUESTS
+- multiple linear questlines at the same time
+- per-chain startup behavior
+- optional side quests that can activate independently
+- automatic quest progress and lead cards
+- InnerSelf compatibility without extra hook changes when pasted below InnerSelf
 
-- Questline now allows for non linear side quests in addition to the above.
-
-Questline is **config-driven**. You reuse the same engine across different scenarios by editing one data object near the top of the script.
+Instead of hand-editing Story Cards every time a chapter advances, a key item is claimed, or a side objective wakes up, Questline updates the relevant cards for you.
 
 ---
 
@@ -26,173 +21,401 @@ Questline is **config-driven**. You reuse the same engine across different scena
 Questline manages quest progression through script-controlled Story Cards.
 
 It automatically:
-- keeps the **current quest lead** visible
-- tracks which quest steps are complete
-- creates a **standalone active quest card** for the current step
-- creates **completed milestone cards**
-- advances the active step when either **player input** or **AI output** indicates success
-- reduces the amount of manual card maintenance needed during long adventures
+
+- keeps a pinned **Quest Progress** card updated
+- keeps a pinned **Current Quest Lead** card updated
+- tracks multiple **linear questlines** independently
+- tracks **active** and **completed** side quests
+- creates or updates a Story Card for each active quest step
+- creates or updates a completed quest card when a step finishes
+- advances linear questlines in order
+- lets either **player input** or **AI output** trigger quest updates
 
 It is especially useful when you want:
-- the AI to stay pointed at the current plot
-- the story to remember what was already completed
-- event progression without hand-editing cards every few turns
+
+- long-form quest continuity
+- optional quest branches
+- multiple structured questlines in one scenario
+- fewer manual Story Card edits during play
 
 ---
 
-## What Questline Does *Not* Do
+## What Questline Does Not Do
 
-Questline is not meant to replace your whole scenario setup.
+Questline is not meant to replace your entire memory setup.
 
 You should still manage these manually:
+
 - Plot Essentials
 - Story Summary
 - character cards
 - major world cards
-- tone / style instructions
-- author notes
+- tone and style instructions
+- Author's Note
 
-Questline should be the source of truth for **quest progression**, not for the entire world state.
-
----
-
-## Main Features
-
-- **Automatic quest tracking**  
-  Detects when a quest step is completed from either player text or story output.
-
-- **Active objective management**  
-  Keeps the current quest lead in front of the AI through a pinned Story Card.
-
-- **Active quest card creation**  
-  Creates a standalone Story Card for the newly active quest step.
-
-- **Milestone logging**  
-  Creates a Story Card for each completed event.
-
-- **Config-driven design**  
-  Reuse the same script engine for different scenarios.
-
-- **Minimal maintenance**  
-  Players do not need to manually update progress cards.
-
-- **Flexible install**  
-  Works with Inner Self, but does not require Inner Self.
-
-- **Long-form friendly**  
-  Helps stabilize adventures that need sequencing and continuity.
+Questline should be your source of truth for **quest progression**, not for the whole world state.
 
 ---
 
-## How It Works
+## Core Model
 
-Questline checks only the **current active quest step**.
+Questline supports two quest types:
 
-Each turn, it can scan:
-- **player input**
-- **AI-generated output**
+### 1. Linear questlines
 
-When the current step is matched, Questline:
+Use these for ordered progression like:
 
-1. marks the step complete
-2. updates the quest progress card
-3. updates the current quest lead card
-4. updates or creates the completed milestone card
-5. creates or updates the next active quest card
-6. advances to the next configured step
+- main story arcs
+- guild questlines
+- investigation chains
+- chapter sequences
+- route-specific progression
 
-This means the AI keeps seeing the current quest objective without the player needing to manually manage progression cards.
+Each linear quest step uses:
 
----
+- `track: "linear"`
+- `chain: "main"` or another chain id
+- `order: 1, 2, 3...`
 
-## Recommended Memory Setup
+Each linear chain has its own:
 
-Questline works best when the rest of your memory setup stays lean.
+- current step
+- current lead
+- completion state
+- startup behavior
 
-### Start the scenario with the first trigger already seeded
+### 2. Side quests
 
-Questline works best when the story opening already names or points toward the **first active event**.
+Use these for optional objectives that can activate independently of the linear chains.
 
-For example, if the first quest step is:
+Each side quest uses:
 
-- `First Key — House of Borrowed Memories`
+- `track: "side"`
+- `activationTerms` and/or `activationRegex`
+- optional mid-stage matching
+- completion matching
 
-then the opener should already include something like:
-
-> The gold-bound book opens and reveals the first page: the House of Borrowed Memories.
-
-This helps in three ways:
-- it puts the first destination into context immediately
-- it aligns the story text with the script’s first active event
-- it gives the AI a concrete place to move toward from turn one
-
-Best practice:
-- **seed the first event in the opening**
-- **do not mark it complete in the opening**
-
-The opening should establish the first lead, not finish the first step.
-
-### Plot Essentials
-Use for:
-- core protagonist facts
-- relationship state
-- always-relevant world truths
-- the fact that the quest exists
-
-Do **not** use Plot Essentials to track step-by-step quest progress.
-
-### Story Summary
-Use for:
-- broad backstory
-- major prior arcs
-- how the current scenario began
-
-Do **not** rely on Story Summary for live quest state.
-
-### Story Cards
-Use for:
-- character cards
-- world cards
-- script-managed quest cards
-- active quest cards
-- completed milestone cards
-- the current quest lead
-
-That split gives Questline the best chance of keeping the story moving cleanly.
+Side quests can start, progress, and complete without interrupting the linear chains.
 
 ---
 
-## Scenario Script Install Guide
+## Startup Behavior
 
-Use the AI Dungeon website on PC (or view as desktop if mobile-only).
+Each linear chain is configured under `QUEST_CONFIG.linearTracks`.
 
-Questline can be installed in **two ways**:
-
-- **Standalone** — for scenarios that are not using Inner Self
-- **Add-on to Inner Self** — for scenarios that already use Inner Self
-
----
-
-## Standalone Install
-
-Use this version if your scenario is **not** already using Inner Self.
-
-### Step 1: Open your scenario
-1. Create a new scenario or edit an existing scenario
-2. Open the `DETAILS` tab at the top while editing your scenario
-3. Scroll down to `Scripting` and toggle ON → `Scripts Enabled`
-4. Select `EDIT SCRIPTS`
-
-### Step 2: Set up the Input tab
-1. Select the **Input** tab on the left
-2. Delete all code within said tab
-3. Copy and paste the following code into your empty Input tab:
+Example:
 
 ```js
-// Your "Input" tab should look like this
+linearTracks: {
+  main: {
+    label: "Main Quest",
+    autoStart: true,
+    initialLead: "A first clue points toward the opening step of a larger quest.",
+    inactiveLead: "A first clue points toward the opening step of a larger quest.",
+    completeLead: "The main quest is complete."
+  },
+  guild: {
+    label: "Guild Questline",
+    autoStart: false,
+    initialLead: "No guild lead is active yet.",
+    inactiveLead: "No guild lead is active yet.",
+    completeLead: "The guild questline is complete."
+  }
+}
+```
+
+### If `autoStart: true`
+
+The first step in that chain starts automatically during scenario kickoff or refresh.
+
+### If `autoStart: false`
+
+That chain stays inactive until it is started by one of these:
+
+- the first step's `activationTerms` or `activationRegex`
+- `QuestDirector.startChain("chainId")`
+- `QuestDirector.start("questId")` for that chain's current step
+
+This is the main behavior change from the older single-chain version.
+
+---
+
+## Backward Compatibility
+
+Older configs still work.
+
+If you use:
+
+```js
+track: "main"
+```
+
+Questline treats it as:
+
+```js
+track: "linear",
+chain: "main"
+```
+
+That makes it easier to migrate older scenarios without rewriting everything at once.
+
+---
+
+## Matching Model
+
+Questline can evaluate both:
+
+- player input
+- AI-generated output
+
+It checks quest text using:
+
+- explicit regex matches
+- keyword matches
+- proximity matches between verbs and quest terms
+- negative guards to avoid false completions like "almost", "not yet", or "still hidden"
+
+For side quests, the general flow is:
+
+- inactive -> started
+- started -> mid
+- mid -> completed
+
+For linear questlines, only the **current step** in that chain can progress.
+
+---
+
+## What the Cards Show
+
+Questline maintains two pinned cards:
+
+### Quest Progress
+
+Shows:
+
+- each linear questline and its completion status
+- completed steps per chain
+- active side quests
+- completed side quests
+
+### Current Quest Lead
+
+Shows:
+
+- the current lead for each linear chain
+- inactive-chain lead text when a chain has not started yet
+- complete-chain lead text when a chain has finished
+- currently active side quest leads
+
+Questline also creates or updates step cards for active and completed quests.
+
+---
+
+## Minimal Config Shape
+
+```js
+const QUEST_CONFIG = {
+  stateKey: "HybridQuestDirector_Template",
+  cardType: "class",
+
+  progressCard: {
+    title: "Quest Progress",
+    keys: "quest progress, active quest, objective tracker, milestone tracker"
+  },
+
+  leadCard: {
+    title: "Current Quest Lead",
+    keys: "current quest lead, active objective, next objective, current objective"
+  },
+
+  progressLabels: {
+    linearTracks: "Linear questlines",
+    activeSideQuests: "Active side quests",
+    completedSideQuests: "Completed side quests"
+  },
+
+  linearTracks: {
+    main: {
+      label: "Main Quest",
+      autoStart: true,
+      initialLead: "A first clue points toward the opening step of a larger quest.",
+      inactiveLead: "A first clue points toward the opening step of a larger quest.",
+      completeLead: "The main quest is complete."
+    }
+  },
+
+  events: [
+    {
+      id: "main_step_1",
+      track: "linear",
+      chain: "main",
+      mode: "linear",
+      order: 1,
+      title: "Main Quest — First Objective",
+      shortTitle: "First Objective",
+      keys: "first objective, main quest step 1",
+      startEntry: "The first objective is now in play.",
+      leadEntry: "Reach the first objective and learn what it means.",
+      midEntry: "The first objective is real, but more complicated than it looked.",
+      midLead: "Push deeper and finish the first objective.",
+      completionEntry: "The first objective was completed.",
+      nextLead: "A new lead points toward the second objective.",
+      activationTerms: ["first objective"],
+      midTerms: ["clue", "partial answer"],
+      locationTerms: ["vault", "ruins"],
+      completionTerms: ["found", "claimed", "completed"],
+      keyTerms: ["first objective", "target"],
+      completionRegex: [
+        /\b(the first objective was completed|the target was secured)\b/i
+      ]
+    },
+    {
+      id: "side_missing_scout",
+      track: "side",
+      mode: "oneoff",
+      title: "Side Quest — The Missing Scout",
+      shortTitle: "The Missing Scout",
+      keys: "missing scout, lost scout, vanished scout",
+      activationEntry: "Rumors spread that a scout vanished near the frontier.",
+      startEntry: "A missing scout may still be alive.",
+      leadEntry: "Track down the missing scout and learn what happened.",
+      midEntry: "The scout's trail reveals signs of struggle.",
+      midLead: "Follow the broken trail and uncover the truth.",
+      completionEntry: "The truth of the missing scout has been uncovered.",
+      activationTerms: ["missing scout", "lost scout"],
+      midTerms: ["trail", "tracks", "camp"],
+      locationTerms: ["forest", "outpost", "camp"],
+      completionTerms: ["found", "rescued", "uncovered"],
+      keyTerms: ["missing scout", "scout"],
+      completionRegex: [
+        /\b(the missing scout was found|the scout's fate was uncovered)\b/i
+      ]
+    }
+  ]
+};
+```
+
+---
+
+## Install Guide
+
+Use the AI Dungeon website on desktop if possible.
+
+Questline can be installed in two ways:
+
+- **Standalone** — for scenarios not using InnerSelf
+- **Add-on to InnerSelf** — for scenarios already using InnerSelf
+
+### Standalone install
+
+If your scenario is **not** using InnerSelf:
+
+#### 1. Input tab
+
+```js
 const modifier = (text) => {
   try { text = QuestDirectorHooks.input(text); } catch (e) {}
-  // Any other input modifier scripts can go here
   return { text };
 };
 modifier(text);
+```
+
+#### 2. Output tab
+
+```js
+const modifier = (text) => {
+  try { text = QuestDirectorHooks.output(text); } catch (e) {}
+  return { text };
+};
+modifier(text);
+```
+
+#### 3. Library tab
+
+Paste the Questline library code into your scenario library and edit `QUEST_CONFIG` only.
+
+### InnerSelf install
+
+If your scenario **already uses InnerSelf**:
+
+- paste Questline **below InnerSelf** in your library
+- do not add extra hook changes
+
+Questline will integrate automatically when installed that way.
+
+---
+
+## Recommended Authoring Practices
+
+### Keep the rest of memory lean
+
+Questline works best when Plot Essentials and Story Summary are not overloaded with live quest state.
+
+### Use the opener for fiction, not for forced completions
+
+If a chain uses `autoStart: true`, the first step starts automatically.
+
+That means your opener should:
+
+- establish the first lead naturally
+- point the player toward the first destination or problem
+- avoid phrasing that accidentally sounds like the first step is already complete
+
+If a chain uses `autoStart: false`, your opener can either:
+
+- leave the chain dormant
+- mention the trigger terms that wake it up
+- let the player activate it later through play
+
+### Prefer explicit completion language for important steps
+
+Regex and term matching are flexible, but clearer completion language reduces false positives and false negatives.
+
+### Separate permanent world truth from quest state
+
+Use Questline cards for quest state.
+Use your normal scenario memory tools for enduring world information.
+
+---
+
+## Manual Controls
+
+Questline exposes optional manual controls:
+
+```js
+QuestDirector.start("questId")
+QuestDirector.progress("questId")
+QuestDirector.complete("questId")
+QuestDirector.mark("questId")
+QuestDirector.startChain("chainId")
+QuestDirector.refresh()
+QuestDirector.reset()
+```
+
+Useful when you want to:
+
+- start an optional route manually
+- force a step to advance
+- reset quest state during testing
+
+---
+
+## Migration Notes
+
+If you are upgrading from the older single-main-chain version:
+
+- change ordered main steps from `track: "main"` to `track: "linear"` plus `chain: "main"` when convenient
+- add `linearTracks` to control per-chain startup and lead behavior
+- move optional routes into their own linear chains instead of trying to fake everything inside one main chain
+- keep side quests on `track: "side"`
+
+Older `track: "main"` configs still work, but the new structure is more expressive and easier to extend.
+
+---
+
+## Repository Use
+
+Edit `QUEST_CONFIG` only.
+
+That is the intended surface area for reuse across scenarios.
+
