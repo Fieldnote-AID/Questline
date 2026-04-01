@@ -44,6 +44,18 @@ OPTIONAL MANUAL CONTROLS
 - QuestDirector.startChain("chainId")
 - QuestDirector.refresh()
 - QuestDirector.reset()
+- /quest start questId
+- /quest progress questId
+- /quest complete questId
+- /quest start-chain chainId
+- /quest refresh
+- /quest reset
+
+OPTIONAL QUEST FIELDS
+- completionExamples: exact player-facing completion phrases shown on active quest cards
+- identityTerms: extra quest aliases used by weighted completion matching
+- completionScoreThreshold: override the default weighted completion threshold
+- requireLocationForCompletion: require a location hit before completion can fire
 */
 
 (function installHybridQuestDirector() {
@@ -252,61 +264,226 @@ OPTIONAL MANUAL CONTROLS
     return safeString(text).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   }
 
-  function textHasAnyTerm(text, terms) {
+  function normalizeWhitespace(text) {
+    return safeString(text)
+      .replace(/[\u2018\u2019]/g, "'")
+      .replace(/[\u201C\u201D]/g, '"')
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  function dedupeTerms(terms) {
+    if (!Array.isArray(terms)) return [];
+    const seen = new Set();
+    const out = [];
+
+    for (let i = 0; i < terms.length; i++) {
+      const term = normalizeWhitespace(terms[i]);
+      const key = term.toLowerCase();
+      if (!term || seen.has(key)) continue;
+      seen.add(key);
+      out.push(term);
+    }
+
+    return out;
+  }
+
+  function createTermPattern(term, flags) {
+    const normalized = normalizeWhitespace(term).replace(/\s+/g, "\\s+");
+    return new RegExp("(^|[^a-z0-9])(" + escapeRegex(normalized) + ")(?=$|[^a-z0-9])", flags || "i");
+  }
+
+  function findTermMatches(text, terms) {
     const body = safeString(text);
-    if (!body || !Array.isArray(terms) || !terms.length) return false;
-    return terms.some(function(term) {
-      return new RegExp(escapeRegex(term), "i").test(body);
-    });
+    const matches = [];
+    const list = dedupeTerms(terms);
+    if (!body || !list.length) return matches;
+
+    for (let i = 0; i < list.length; i++) {
+      const term = list[i];
+      const rx = createTermPattern(term, "ig");
+      let match;
+
+      while ((match = rx.exec(body))) {
+        const prefix = safeString(match[1]);
+        const phrase = safeString(match[2]) || term;
+        const start = match.index + prefix.length;
+        const end = start + phrase.length;
+
+        matches.push({
+          term: term,
+          text: phrase,
+          start: start,
+          end: end
+        });
+
+        if (match.index === rx.lastIndex) rx.lastIndex++;
+      }
+    }
+
+    return matches;
+  }
+
+  function textHasAnyTerm(text, terms) {
+    return findTermMatches(text, terms).length > 0;
+  }
+
+  function findRegexMatches(text, regexes) {
+    const body = safeString(text);
+    const matches = [];
+    if (!body || !Array.isArray(regexes) || !regexes.length) return matches;
+
+    for (let i = 0; i < regexes.length; i++) {
+      const rx = regexes[i];
+      if (!(rx instanceof RegExp)) continue;
+
+      const flags = rx.flags.includes("g") ? rx.flags : (rx.flags + "g");
+      const copy = new RegExp(rx.source, flags);
+      let match;
+
+      while ((match = copy.exec(body))) {
+        matches.push({
+          regex: rx,
+          text: safeString(match[0]),
+          start: match.index,
+          end: match.index + safeString(match[0]).length
+        });
+
+        if (match.index === copy.lastIndex) copy.lastIndex++;
+      }
+    }
+
+    return matches;
   }
 
   function textHasAnyRegex(text, regexes) {
-    const body = safeString(text);
-    if (!body || !Array.isArray(regexes) || !regexes.length) return false;
-    return regexes.some(function(rx) {
-      return rx instanceof RegExp && rx.test(body);
-    });
+    return findRegexMatches(text, regexes).length > 0;
   }
 
   function textHasNegativeCompletion(text) {
     return /\b(almost|nearly|not yet|failed to|couldn'?t|could not|unable to|trying to|tried to|looking for|searching for|needed to find|need to find|hoping to find|wanted to find|wasn'?t there|was not there|missing|gone|still hidden)\b/i.test(safeString(text));
   }
 
-  function textHasProximityPair(text, leftTerms, rightTerms, maxGap) {
+  function textHasNegativeNearRange(text, start, end, before, after) {
     const body = safeString(text);
-    const gap = Number.isInteger(maxGap) ? maxGap : 40;
-    if (!body || !Array.isArray(leftTerms) || !leftTerms.length || !Array.isArray(rightTerms) || !rightTerms.length) return false;
+    const left = Math.max(0, (Number.isInteger(start) ? start : 0) - (Number.isInteger(before) ? before : 24));
+    const right = Math.min(body.length, (Number.isInteger(end) ? end : 0) + (Number.isInteger(after) ? after : 16));
+    const window = body.slice(left, right);
 
-    for (let i = 0; i < leftTerms.length; i++) {
-      for (let j = 0; j < rightTerms.length; j++) {
-        const a = escapeRegex(leftTerms[i]);
-        const b = escapeRegex(rightTerms[j]);
-        const forward = new RegExp(a + "[\\s\\S]{0," + gap + "}" + b, "i");
-        const backward = new RegExp(b + "[\\s\\S]{0," + gap + "}" + a, "i");
-        if (forward.test(body) || backward.test(body)) return true;
+    return textHasNegativeCompletion(window);
+  }
+
+  function filterNonNegatedMatches(text, matches, before, after) {
+    if (!Array.isArray(matches) || !matches.length) return [];
+    const left = Number.isInteger(before) ? before : 24;
+    const right = Number.isInteger(after) ? after : 16;
+    return matches.filter(function(match) {
+      return !textHasNegativeNearRange(text, match.start, match.end, left, right);
+    });
+  }
+
+  function getClosestPair(leftMatches, rightMatches, maxGap) {
+    if (!Array.isArray(leftMatches) || !leftMatches.length || !Array.isArray(rightMatches) || !rightMatches.length) {
+      return null;
+    }
+
+    const gap = Number.isInteger(maxGap) ? maxGap : 60;
+    let best = null;
+
+    for (let i = 0; i < leftMatches.length; i++) {
+      const a = leftMatches[i];
+
+      for (let j = 0; j < rightMatches.length; j++) {
+        const b = rightMatches[j];
+        let distance = 0;
+
+        if (a.end <= b.start) {
+          distance = b.start - a.end;
+        } else if (b.end <= a.start) {
+          distance = a.start - b.end;
+        } else {
+          distance = 0;
+        }
+
+        if (distance > gap) continue;
+
+        if (!best || distance < best.gap) {
+          best = {
+            left: a,
+            right: b,
+            gap: distance
+          };
+        }
       }
     }
-    return false;
+
+    return best;
+  }
+
+  function textHasProximityPair(text, leftTerms, rightTerms, maxGap) {
+    const leftMatches = filterNonNegatedMatches(text, findTermMatches(text, leftTerms));
+    const rightMatches = filterNonNegatedMatches(text, findTermMatches(text, rightTerms));
+    return !!getClosestPair(leftMatches, rightMatches, maxGap);
+  }
+
+  function getQuestIdentityTerms(quest) {
+    if (!quest || typeof quest !== "object") return [];
+
+    const titleTail = safeString(quest.title).split("—").pop();
+    return dedupeTerms([]
+      .concat(Array.isArray(quest.identityTerms) ? quest.identityTerms : [])
+      .concat(Array.isArray(quest.keyTerms) ? quest.keyTerms : [])
+      .concat(safeString(quest.shortTitle))
+      .concat(normalizeWhitespace(titleTail))
+    );
   }
 
   function textHasAcquisitionPattern(text, quest) {
     const body = safeString(text);
-    if (!body) return false;
+    if (!body || !quest) return false;
 
-    const verbs = Array.isArray(quest.completionTerms) ? quest.completionTerms : [];
-    const keys = Array.isArray(quest.keyTerms) ? quest.keyTerms : [];
+    const verbs = filterNonNegatedMatches(body, findTermMatches(body, quest.completionTerms));
+    const identities = filterNonNegatedMatches(body, findTermMatches(body, getQuestIdentityTerms(quest)));
+    const pair = getClosestPair(verbs, identities, Number.isInteger(quest.completionGap) ? quest.completionGap : 60);
 
-    for (let i = 0; i < verbs.length; i++) {
-      for (let j = 0; j < keys.length; j++) {
-        const v = escapeRegex(verbs[i]);
-        const k = escapeRegex(keys[j]);
-        const verbThenKey = new RegExp("\\b" + v + "\\b[\\s\\S]{0,40}\\b" + k + "\\b", "i");
-        const keyThenVerb = new RegExp("\\b" + k + "\\b[\\s\\S]{0,20}\\b(?:was|were|is|are|had been|has been)?\\s*" + v + "\\b", "i");
-        if (verbThenKey.test(body) || keyThenVerb.test(body)) return true;
-      }
-    }
+    return !!pair;
+  }
 
-    return false;
+  function getCompletionScore(text, quest) {
+    const body = safeString(text);
+    if (!body || !quest) return 0;
+
+    const verbMatches = filterNonNegatedMatches(body, findTermMatches(body, quest.completionTerms));
+    if (!verbMatches.length) return 0;
+
+    const keyMatches = filterNonNegatedMatches(body, findTermMatches(body, quest.keyTerms));
+    const identityMatches = filterNonNegatedMatches(body, findTermMatches(body, getQuestIdentityTerms(quest)));
+    const locationMatches = filterNonNegatedMatches(body, findTermMatches(body, quest.locationTerms));
+    const exampleMatches = filterNonNegatedMatches(body, findTermMatches(body, quest.completionExamples));
+
+    let score = 0;
+
+    if (exampleMatches.length) score += 5;
+    if (keyMatches.length) score += 3;
+    else if (identityMatches.length) score += 2;
+
+    if (locationMatches.length) score += 1;
+
+    const verbIdentityPair = getClosestPair(
+      verbMatches,
+      keyMatches.length ? keyMatches : identityMatches,
+      Number.isInteger(quest.completionGap) ? quest.completionGap : 60
+    );
+    if (verbIdentityPair) score += 3;
+
+    const locationIdentityPair = getClosestPair(
+      locationMatches,
+      keyMatches.length ? keyMatches : identityMatches,
+      Number.isInteger(quest.locationGap) ? quest.locationGap : 180
+    );
+    if (locationIdentityPair) score += 1;
+
+    return score;
   }
 
   function ensureCardsArray() {
@@ -588,6 +765,23 @@ OPTIONAL MANUAL CONTROLS
     return safeString(last && (last.text || last.rawText));
   }
 
+  function getQuestCompletionExamples(quest) {
+    const explicit = dedupeTerms(Array.isArray(quest && quest.completionExamples) ? quest.completionExamples : []);
+    if (explicit.length) return explicit.slice(0, 4);
+
+    const target = normalizeWhitespace(
+      safeString(quest && (quest.shortTitle || (Array.isArray(quest.keyTerms) && quest.keyTerms[0]) || quest.title))
+    );
+    if (!target) return [];
+
+    const articleless = target.replace(/^(the|a|an)\s+/i, "");
+    return [
+      "I claimed the " + articleless + ".",
+      "I earned the " + articleless + ".",
+      "The " + articleless + " was secured."
+    ];
+  }
+
   function buildQuestCardEntry(quest, questState) {
     if (!quest || !questState) return "";
     if (questState.stage === "completed") return quest.completionEntry || quest.leadEntry || "";
@@ -596,13 +790,29 @@ OPTIONAL MANUAL CONTROLS
     return quest.activationEntry || quest.startEntry || quest.leadEntry || "";
   }
 
+  function buildQuestCardDescription(quest, questState) {
+    const lines = ["Auto-managed quest card."];
+    const hints = getQuestCompletionExamples(quest);
+    const isActive = questState && (questState.stage === "started" || questState.stage === "mid");
+
+    if (isActive && hints.length) {
+      lines.push("");
+      lines.push("Completion phrases if the player gets stuck:");
+      for (let i = 0; i < hints.length; i++) {
+        lines.push("- " + hints[i]);
+      }
+    }
+
+    return lines.join("\\n");
+  }
+
   function refreshQuestCard(quest) {
     const qs = getQuestState(quest.id);
     return upsertCard({
       title: quest.title,
       keys: quest.keys,
       entry: buildQuestCardEntry(quest, qs),
-      description: "Auto-managed quest card.",
+      description: buildQuestCardDescription(quest, qs),
       pinned: false
     });
   }
@@ -922,21 +1132,72 @@ OPTIONAL MANUAL CONTROLS
   function questCompletionMatched(text, quest) {
     const body = safeString(text);
     if (!body.trim() || !quest) return false;
-    if (textHasNegativeCompletion(body)) return false;
-    if (textHasAnyRegex(body, quest.completionRegex)) return true;
 
-    const hasAcquisition = textHasAcquisitionPattern(body, quest);
-    if (!hasAcquisition) return false;
+    const regexMatches = filterNonNegatedMatches(body, findRegexMatches(body, quest.completionRegex), 30, 10);
+    if (regexMatches.length) return true;
 
-    const hasSpecificKey = textHasAnyTerm(body, quest.keyTerms);
-    const hasLocation = textHasAnyTerm(body, quest.locationTerms);
-    const keyNearVerb = textHasProximityPair(body, quest.keyTerms, quest.completionTerms, 40);
-    const locationNearKey = textHasProximityPair(body, quest.locationTerms, quest.keyTerms, 120);
+    const score = getCompletionScore(body, quest);
+    const threshold = Number.isInteger(quest.completionScoreThreshold) ? quest.completionScoreThreshold : 5;
 
-    if (hasSpecificKey && keyNearVerb) return true;
-    if (hasLocation && hasSpecificKey && locationNearKey && keyNearVerb) return true;
+    if (quest.requireLocationForCompletion && !textHasAnyTerm(body, quest.locationTerms)) {
+      return false;
+    }
 
-    return false;
+    return score >= threshold;
+  }
+
+  function parseQuestCommand(text) {
+    const body = normalizeWhitespace(text);
+    if (!/^\/quest\b/i.test(body)) return null;
+
+    const match = body.match(/^\/quest\s+(start-chain|start|progress|complete|mark|refresh|reset)\b(?:\s+(.+))?$/i);
+    if (!match) return { handled: false };
+
+    return {
+      handled: true,
+      command: match[1].toLowerCase(),
+      arg: safeString(match[2]).trim()
+    };
+  }
+
+  function handleQuestCommand(text) {
+    const parsed = parseQuestCommand(text);
+    if (!parsed || !parsed.handled) return false;
+
+    if (parsed.command === "refresh") {
+      refreshCoreCards();
+      return true;
+    }
+
+    if (parsed.command === "reset") {
+      state[QUEST_CONFIG.stateKey] = null;
+      delete state[QUEST_CONFIG.stateKey];
+      getState();
+      refreshCoreCards();
+      return true;
+    }
+
+    if (parsed.command === "start-chain") {
+      const ok = parsed.arg ? startChain(parsed.arg) : false;
+      refreshCoreCards();
+      return ok;
+    }
+
+    const q = getAllQuests().find(function(item) {
+      return item.id === parsed.arg;
+    });
+
+    if (!q) {
+      refreshCoreCards();
+      return true;
+    }
+
+    if (parsed.command === "start") startQuest(q, { skipRefresh: true });
+    else if (parsed.command === "progress") progressQuest(q, { skipRefresh: true });
+    else if (parsed.command === "complete" || parsed.command === "mark") completeQuest(q, { skipRefresh: true });
+
+    refreshCoreCards();
+    return true;
   }
 
   function buildScanFingerprint(hook, text) {
@@ -950,6 +1211,10 @@ OPTIONAL MANUAL CONTROLS
     if (!body.trim()) {
       refreshCoreCards();
       return false;
+    }
+
+    if (handleQuestCommand(body)) {
+      return true;
     }
 
     const s = getState();
@@ -1030,8 +1295,35 @@ OPTIONAL MANUAL CONTROLS
 
   function runCore(hook, explicitText) {
     if (hook !== "input" && hook !== "output") return false;
+
+    const s = getState();
+    let changed = false;
+
+    if (hook === "input") {
+      const inputText = getLatestText(explicitText);
+      if (safeString(inputText).trim()) {
+        s.lastInputText = safeString(inputText);
+        changed = scanQuests(inputText, "input") || changed;
+      } else {
+        s.lastInputText = "";
+      }
+      refreshCoreCards();
+      return changed;
+    }
+
+    const bufferedInput = safeString(s.lastInputText);
+    if (bufferedInput.trim()) {
+      changed = scanQuests(bufferedInput, "input") || changed;
+    }
+
+    const outputText = getLatestText(explicitText);
+    if (safeString(outputText).trim()) {
+      changed = scanQuests(outputText, "output") || changed;
+    }
+
+    s.lastInputText = "";
     refreshCoreCards();
-    return scanQuests(getLatestText(explicitText), hook);
+    return changed;
   }
 
   globalThis.QuestDirector = {
@@ -1099,8 +1391,16 @@ OPTIONAL MANUAL CONTROLS
   if (typeof globalThis.InnerSelf === "function" && !globalThis.InnerSelf.__questDirectorWrapped) {
     const original = globalThis.InnerSelf;
     const wrapped = function(hook) {
+      if (hook === "input") {
+        try { globalThis.QuestDirector.run("input", globalThis.text); } catch (_) {}
+      }
+
       const result = original(hook);
-      try { globalThis.QuestDirector.run(hook, globalThis.text); } catch (_) {}
+
+      if (hook === "output") {
+        try { globalThis.QuestDirector.run("output", globalThis.text); } catch (_) {}
+      }
+
       return result;
     };
     wrapped.__questDirectorWrapped = true;
