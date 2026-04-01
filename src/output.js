@@ -1,7 +1,6 @@
-// Your "Output" tab should look like this
 InnerSelf("output");
 const modifier = (text) => {
-  // Any other output modifier scripts can go here
+  text = QuestDirectorHooks.output(text);
   return { text };
 };
 modifier(text);
