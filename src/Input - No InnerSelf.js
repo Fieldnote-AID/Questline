@@ -1,7 +1,5 @@
-// Your "Input" tab should look like this
-InnerSelf("input");
 const modifier = (text) => {
-  // Any other input modifier scripts can go here
+  text = QuestDirectorHooks.input(text);
   return { text };
 };
 modifier(text);
