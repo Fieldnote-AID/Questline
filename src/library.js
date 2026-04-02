@@ -9,6 +9,8 @@ WHAT THIS VERSION DOES
 - Lets either player input OR AI output trigger quest updates
 - Creates/updates quest cards at START / MID / COMPLETION
 - Updates pinned Progress + Current Lead cards
+- NEW: Supports upserting arbitrary story cards from quest config
+- NEW: Lets quests add/update existing or new story cards on START / MID / COMPLETION
 
 HOW TO USE
 1. Edit QUEST_CONFIG only
@@ -56,6 +58,30 @@ OPTIONAL QUEST FIELDS
 - identityTerms: extra quest aliases used by weighted completion matching
 - completionScoreThreshold: override the default weighted completion threshold
 - requireLocationForCompletion: require a location hit before completion can fire
+
+NEW OPTIONAL QUEST FIELDS FOR STORY CARD UPDATES
+- startStoryCards: [ cardSpec, ... ]
+- midStoryCards: [ cardSpec, ... ]
+- completionStoryCards: [ cardSpec, ... ]
+- storyCardUpdates: {
+    onStart: [ cardSpec, ... ],
+    onMid: [ cardSpec, ... ],
+    onComplete: [ cardSpec, ... ]
+  }
+
+cardSpec fields
+- title: required unless matching by exactTitle / matchTitle / findTitle
+- keys: optional
+- entry: optional
+- value: optional alias for entry
+- description: optional
+- type: optional, defaults to QUEST_CONFIG.cardType
+- pinned: optional
+- useForCharacterCreation: optional
+- matchTitle / findTitle / exactTitle: optional title to locate an existing card to update
+
+If a matching card is found, it is updated.
+If no matching card is found, a new card is created.
 */
 
 (function installHybridQuestDirector() {
@@ -81,9 +107,6 @@ OPTIONAL QUEST FIELDS
       completedSideQuests: "Completed side quests"
     },
 
-    // Per-chain config.
-    // autoStart controls whether the FIRST step in that chain begins automatically
-    // during scenario kickoff / refresh.
     linearTracks: {
       main: {
         label: "Main Quest",
@@ -101,159 +124,7 @@ OPTIONAL QUEST FIELDS
       }
     },
 
-    events: [
-      // =========================
-      // LINEAR CHAIN: MAIN
-      // =========================
-      {
-        id: "main_relic_map",
-        track: "linear",
-        chain: "main",
-        mode: "linear",
-        order: 1,
-        title: "Main Quest — The Hidden Map",
-        shortTitle: "The Hidden Map",
-        keys: "hidden map, relic map, first clue, main quest step 1",
-        startEntry: "A hidden map hints at the first step in a larger quest.",
-        leadEntry: "Find the hidden map and learn where it points.",
-        midEntry: "The map is real, but it seems incomplete or encoded.",
-        midLead: "Study the map closely and uncover the destination it conceals.",
-        completionEntry: "The hidden map has been recovered and its meaning has started to unfold.",
-        nextLead: "The map points toward an old chamber tied to the next objective.",
-        activationTerms: [ "hidden map", "relic map", "map fragment" ],
-        activationRegex: [
-          /\b(a hidden map surfaced|someone found part of a map)\b/i
-        ],
-        midTerms: [ "decoded", "translated", "partial map", "hidden markings", "cipher", "strange map" ],
-        midRegex: [
-          /\b(the map was incomplete|the map was encoded|the markings began to make sense)\b/i
-        ],
-        locationTerms: [ "archive", "ruins", "vault", "study", "library" ],
-        completionTerms: [ "found", "claimed", "recovered", "secured", "obtained", "decoded" ],
-        keyTerms: [ "hidden map", "relic map", "map fragment", "map" ],
-        completionRegex: [
-          /\b(the hidden map was recovered|the relic map was found|the map was finally decoded)\b/i
-        ]
-      },
-      {
-        id: "main_old_chamber",
-        track: "linear",
-        chain: "main",
-        mode: "linear",
-        order: 2,
-        title: "Main Quest — The Old Chamber",
-        shortTitle: "The Old Chamber",
-        keys: "old chamber, sealed chamber, main quest step 2",
-        startEntry: "The recovered map points toward an old sealed chamber.",
-        leadEntry: "Reach the old chamber and discover what it protects.",
-        midEntry: "The chamber is warded, and opening it may trigger consequences.",
-        midLead: "Break, bypass, or understand the chamber's defenses before entering.",
-        completionEntry: "The old chamber has been opened and the next stage of the quest revealed.",
-        nextLead: "Something inside the chamber points toward a final confrontation.",
-        midTerms: [ "warded", "sealed door", "locked chamber", "ritual seal", "broken ward" ],
-        midRegex: [
-          /\b(the chamber was sealed|the ward was active|the door would not open)\b/i
-        ],
-        locationTerms: [ "chamber", "vault", "crypt", "ruins", "underground hall" ],
-        completionTerms: [ "opened", "entered", "unsealed", "broke", "crossed", "revealed" ],
-        keyTerms: [ "old chamber", "sealed chamber", "inner chamber", "hidden chamber" ],
-        completionRegex: [
-          /\b(the old chamber was opened|the sealed chamber was breached|the chamber revealed its secret)\b/i
-        ]
-      },
-
-      // =========================
-      // LINEAR CHAIN: GUILD
-      // =========================
-      {
-        id: "guild_invitation",
-        track: "linear",
-        chain: "guild",
-        mode: "linear",
-        order: 1,
-        title: "Guild Quest — The Invitation",
-        shortTitle: "The Invitation",
-        keys: "guild invitation, sealed invitation, guild summons",
-        startEntry: "A private guild has begun to take interest.",
-        leadEntry: "Follow the invitation and learn what the guild wants.",
-        midEntry: "The guild's offer comes with conditions and hidden motives.",
-        midLead: "Decide whether to accept the guild's terms or push deeper for answers.",
-        completionEntry: "The guild's invitation has been answered, and the relationship is now real.",
-        nextLead: "The guild expects a proving task before offering trust.",
-        activationTerms: [ "guild invitation", "sealed invitation", "guild summons", "private guild" ],
-        activationRegex: [
-          /\b(an invitation arrived|the guild reached out|someone summoned them to the guild)\b/i
-        ],
-        midTerms: [ "terms", "conditions", "hidden agenda", "offer", "suspicious contract" ],
-        midRegex: [
-          /\b(the offer had conditions|the guild wanted something in return)\b/i
-        ],
-        locationTerms: [ "guildhall", "manor", "hall", "chapterhouse", "meeting room" ],
-        completionTerms: [ "accepted", "answered", "met", "joined", "agreed", "entered" ],
-        keyTerms: [ "guild invitation", "invitation", "guild summons", "offer" ],
-        completionRegex: [
-          /\b(the invitation was accepted|they answered the guild's summons|the guild meeting was concluded)\b/i
-        ]
-      },
-      {
-        id: "guild_proving_task",
-        track: "linear",
-        chain: "guild",
-        mode: "linear",
-        order: 2,
-        title: "Guild Quest — The Proving Task",
-        shortTitle: "The Proving Task",
-        keys: "guild proving task, initiation task, guild trial",
-        startEntry: "The guild has assigned a proving task.",
-        leadEntry: "Complete the proving task and decide how much of yourself to reveal.",
-        midEntry: "The proving task is more dangerous than the guild admitted.",
-        midLead: "Finish the task without giving the guild more leverage than it deserves.",
-        completionEntry: "The proving task is done, and the guild must now decide what comes next.",
-        nextLead: "The guild questline is complete.",
-        midTerms: [ "ambush", "test", "set up", "dangerous assignment", "trap" ],
-        midRegex: [
-          /\b(the test was real|the task was a trap|the proving task went wrong)\b/i
-        ],
-        locationTerms: [ "ruins", "vault", "street", "warehouse", "crypt" ],
-        completionTerms: [ "completed", "survived", "finished", "delivered", "returned", "proved" ],
-        keyTerms: [ "proving task", "guild trial", "initiation task", "assignment" ],
-        completionRegex: [
-          /\b(the proving task was complete|they survived the guild trial|the initiation task was finished)\b/i
-        ]
-      },
-
-      // =========================
-      // SIDE QUEST EXAMPLE
-      // =========================
-      {
-        id: "side_missing_scout",
-        track: "side",
-        mode: "oneoff",
-        title: "Side Quest — The Missing Scout",
-        shortTitle: "The Missing Scout",
-        keys: "missing scout, lost scout, vanished scout",
-        activationEntry: "Rumors spread that a scout vanished near the frontier and never returned.",
-        startEntry: "A missing scout may still be alive, or may have found something others wanted hidden.",
-        leadEntry: "Track down the missing scout and learn what happened.",
-        midEntry: "The scout's trail reveals signs of struggle and a secret worth hiding.",
-        midLead: "Follow the broken trail and find out what the missing scout discovered.",
-        completionEntry: "The truth of the missing scout has been uncovered.",
-        activationTerms: [ "missing scout", "lost scout", "vanished scout", "disappeared on patrol" ],
-        activationRegex: [
-          /\b(a scout went missing|the patrol never came back)\b/i
-        ],
-        midTerms: [ "trail", "tracks", "blood", "camp", "broken supplies" ],
-        midRegex: [
-          /\b(the trail was fresh|there were signs of a struggle|the camp had been abandoned)\b/i
-        ],
-        locationTerms: [ "forest", "road", "outpost", "camp", "frontier" ],
-        completionTerms: [ "found", "rescued", "buried", "uncovered", "learned", "confirmed" ],
-        keyTerms: [ "missing scout", "scout", "trail", "camp" ],
-        completionRegex: [
-          /\b(the missing scout was found|the scout's fate was uncovered|the truth of the vanished scout was revealed)\b/i
-        ]
-      }
-    ]
+    events: []
   };
 
   function safeString(v) {
@@ -491,25 +362,48 @@ OPTIONAL QUEST FIELDS
     return storyCards;
   }
 
+  function normalizeCardTitle(title) {
+    return safeString(title).trim().toLowerCase();
+  }
+
   function findCard(title) {
     const cards = ensureCardsArray();
-    const t = safeString(title).trim().toLowerCase();
+    const t = normalizeCardTitle(title);
+    if (!t) return null;
+
     for (let i = 0; i < cards.length; i++) {
       const card = cards[i];
-      if (safeString(card && card.title).trim().toLowerCase() === t) return card;
+      if (normalizeCardTitle(card && card.title) === t) return card;
+    }
+    return null;
+  }
+
+  function findCardBySpec(spec) {
+    const cards = ensureCardsArray();
+    const exactTitle = normalizeCardTitle(spec && (spec.exactTitle || spec.matchTitle || spec.findTitle || spec.title));
+    if (exactTitle) {
+      for (let i = 0; i < cards.length; i++) {
+        const card = cards[i];
+        if (normalizeCardTitle(card && card.title) === exactTitle) return card;
+      }
     }
     return null;
   }
 
   function upsertCard(args) {
-    const title = args.title;
-    const keys = args.keys;
-    const entry = args.entry;
+    const title = safeString(args.title);
+    const keys = safeString(args.keys);
+    const entry = safeString(args.entry);
     const description = safeString(args.description);
     const pinned = !!args.pinned;
+    const type = safeString(args.type) || QUEST_CONFIG.cardType;
+    const useForCharacterCreation = typeof args.useForCharacterCreation === "boolean"
+      ? args.useForCharacterCreation
+      : undefined;
 
     const cards = ensureCardsArray();
-    let card = findCard(title);
+    let card = args.matchSpec ? findCardBySpec(args.matchSpec) : null;
+    if (!card) card = findCard(title);
 
     if (!card && typeof addStoryCard === "function") {
       addStoryCard("%@%");
@@ -522,15 +416,19 @@ OPTIONAL QUEST FIELDS
     }
 
     if (!card) {
-      card = { title: "%@%", keys: "", entry: "", description: "", type: QUEST_CONFIG.cardType };
+      card = { title: "%@%", keys: "", entry: "", description: "", type: type };
       cards.unshift(card);
     }
 
-    card.type = QUEST_CONFIG.cardType;
-    card.title = title;
-    card.keys = keys;
+    card.type = type;
+    card.title = title || safeString(card.title);
+    card.keys = keys || safeString(card.keys);
     card.entry = entry;
     card.description = description;
+
+    if (typeof useForCharacterCreation === "boolean") {
+      card.useForCharacterCreation = useForCharacterCreation;
+    }
 
     if (pinned) {
       const idx = cards.indexOf(card);
@@ -541,6 +439,69 @@ OPTIONAL QUEST FIELDS
     }
 
     return card;
+  }
+
+  function resolveCardSpec(spec) {
+    if (!spec || typeof spec !== "object") return null;
+
+    const title = safeString(spec.title || spec.exactTitle || spec.matchTitle || spec.findTitle).trim();
+    if (!title) return null;
+
+    return {
+      title: title,
+      keys: safeString(spec.keys),
+      entry: safeString(spec.entry || spec.value),
+      description: safeString(spec.description),
+      type: safeString(spec.type) || QUEST_CONFIG.cardType,
+      pinned: !!spec.pinned,
+      useForCharacterCreation: typeof spec.useForCharacterCreation === "boolean"
+        ? spec.useForCharacterCreation
+        : undefined,
+      matchSpec: spec
+    };
+  }
+
+  function getQuestStoryCardSpecs(quest, phase) {
+    if (!quest || !phase) return [];
+
+    const legacyField = phase === "start"
+      ? quest.startStoryCards
+      : phase === "mid"
+        ? quest.midStoryCards
+        : phase === "complete"
+          ? quest.completionStoryCards
+          : null;
+
+    const mapField = quest.storyCardUpdates && typeof quest.storyCardUpdates === "object"
+      ? (
+          phase === "start"
+            ? quest.storyCardUpdates.onStart
+            : phase === "mid"
+              ? quest.storyCardUpdates.onMid
+              : phase === "complete"
+                ? quest.storyCardUpdates.onComplete
+                : null
+        )
+      : null;
+
+    const merged = []
+      .concat(Array.isArray(legacyField) ? legacyField : [])
+      .concat(Array.isArray(mapField) ? mapField : []);
+
+    return merged
+      .map(resolveCardSpec)
+      .filter(Boolean);
+  }
+
+  function applyQuestStoryCards(quest, phase) {
+    const specs = getQuestStoryCardSpecs(quest, phase);
+    if (!specs.length) return [];
+
+    const updated = [];
+    for (let i = 0; i < specs.length; i++) {
+      updated.push(upsertCard(specs[i]));
+    }
+    return updated;
   }
 
   function getTurnKey() {
@@ -803,7 +764,7 @@ OPTIONAL QUEST FIELDS
       }
     }
 
-    return lines.join("\\n");
+    return lines.join("\n");
   }
 
   function refreshQuestCard(quest) {
@@ -813,7 +774,9 @@ OPTIONAL QUEST FIELDS
       keys: quest.keys,
       entry: buildQuestCardEntry(quest, qs),
       description: buildQuestCardDescription(quest, qs),
-      pinned: false
+      pinned: false,
+      type: QUEST_CONFIG.cardType,
+      matchSpec: { title: quest.title }
     });
   }
 
@@ -847,6 +810,7 @@ OPTIONAL QUEST FIELDS
       currentState.started = true;
 
       refreshQuestCard(currentQuest);
+      applyQuestStoryCards(currentQuest, "start");
     }
   }
 
@@ -958,7 +922,9 @@ OPTIONAL QUEST FIELDS
       keys: QUEST_CONFIG.progressCard.keys,
       entry: buildProgressEntry(),
       description: "Auto-managed quest progress.",
-      pinned: true
+      pinned: true,
+      type: QUEST_CONFIG.cardType,
+      matchSpec: { title: QUEST_CONFIG.progressCard.title }
     });
 
     upsertCard({
@@ -966,7 +932,9 @@ OPTIONAL QUEST FIELDS
       keys: QUEST_CONFIG.leadCard.keys,
       entry: buildLeadEntry(),
       description: "Auto-managed current quest lead.",
-      pinned: true
+      pinned: true,
+      type: QUEST_CONFIG.cardType,
+      matchSpec: { title: QUEST_CONFIG.leadCard.title }
     });
 
     const chainIds = getLinearTrackIds();
@@ -1007,6 +975,7 @@ OPTIONAL QUEST FIELDS
     qs.started = true;
 
     refreshQuestCard(quest);
+    applyQuestStoryCards(quest, "start");
     if (!options.skipRefresh) refreshCoreCards();
 
     if (!options.silent) {
@@ -1037,6 +1006,7 @@ OPTIONAL QUEST FIELDS
     qs.stage = "mid";
 
     refreshQuestCard(quest);
+    applyQuestStoryCards(quest, "mid");
     if (!options.skipRefresh) refreshCoreCards();
 
     if (!options.silent) {
@@ -1066,6 +1036,7 @@ OPTIONAL QUEST FIELDS
       qs.stage = "completed";
       qs.completed = true;
       refreshQuestCard(quest);
+      applyQuestStoryCards(quest, "complete");
 
       if (ls.completedIds.indexOf(quest.id) === -1) ls.completedIds.push(quest.id);
       ls.lastCompletedTitle = quest.title;
@@ -1081,6 +1052,7 @@ OPTIONAL QUEST FIELDS
         ls.active = true;
         ls.currentLead = nextQuest.leadEntry || nextQuest.startEntry || quest.nextLead || getDefaultTrackLead(chainId);
         refreshQuestCard(nextQuest);
+        applyQuestStoryCards(nextQuest, "start");
       } else {
         ls.currentLead = quest.nextLead || getCompleteTrackLead(chainId);
       }
@@ -1088,6 +1060,7 @@ OPTIONAL QUEST FIELDS
       qs.stage = "completed";
       qs.completed = true;
       refreshQuestCard(quest);
+      applyQuestStoryCards(quest, "complete");
 
       if (s.sideCompletedIds.indexOf(quest.id) === -1) s.sideCompletedIds.push(quest.id);
     }
@@ -1227,7 +1200,6 @@ OPTIONAL QUEST FIELDS
 
     let changed = false;
 
-    // LINEAR CHAINS: only current quest in each chain can progress
     const chainIds = getLinearTrackIds();
     for (let i = 0; i < chainIds.length; i++) {
       const chainId = chainIds[i];
@@ -1266,7 +1238,6 @@ OPTIONAL QUEST FIELDS
       }
     }
 
-    // SIDE QUESTS: can activate/progress/complete independently
     const sides = getSideQuests();
     for (let i = 0; i < sides.length; i++) {
       const q = sides[i];
